@@ -323,7 +323,7 @@ function register(b){
 }
 function saveProfile(){const cn=$('className').value,num=$('number').value;if(!/^1ねん[1-4]くみ$/.test(cn)|| !/^(?:[1-9]|[12][0-9]|3[0-5])$/.test(num)){alert('がっきゅうと しゅっせきばんごうを えらんでね。');return}state.className=cn;state.number=num;storage.className=cn;storage.number=num;storage.profileRegistered=true;save();state.screen='home';render()}
 function changeProfile(){state.screen='register';render()}
-function home(b){b.innerHTML=`<section class="panel"><h2>ぼうけんの じゅんび</h2><div class="profile-summary">👤 ${esc(state.className)}　${esc(state.number)}ばん <button class="outline" style="padding:7px 12px;font-size:14px" onclick="changeProfile()">へんこう</button></div><div class="actions"><button class="outline" onclick="openGuide()">📖 ゲームの あそびかた</button><button class="primary" onclick="openLoginWardrobe()">🎁 がめんを きせかえる (${earnedThemes().length}/3)</button></div><h3>ダンジョンを えらぼう</h3><div class="grid three">${DUNGEONS.map(([id,name])=>`<button class="choice ${state.dungeon===id?'selected':''}" onclick="selectDungeon('${id}')">${name}</button>`).join('')}</div><h3>あそびかた</h3><div class="grid two"><button class="choice ${state.mode==='challenge'?'selected':''}" onclick="selectMode('challenge')"><strong>チャレンジ</strong><span class="small">やめても まけても ステージ1から</span></button><button class="choice ${state.mode==='checkpoint'?'selected':''}" onclick="selectMode('checkpoint')"><strong>チェックポイント</strong><span class="small">まいステージ セーブ。まけても そだてて さいちょうせん</span></button></div><p class="small">きろくは このたんまつに じどうほぞん。ダンジョン・モードごとに べつの ぼうけんです。</p><div class="actions"><button class="primary" onclick="enterGame()">ぼうけんへ すすむ！</button></div><div class="actions"><button class="outline" onclick="openTestMode()">🧪 せんせいよう バトルテスト</button></div><p class="small center">テストは きろくに のこりません。</p></section>`}
+function home(b){b.innerHTML=`<section class="panel"><h2>ぼうけんの じゅんび</h2><div class="profile-summary">👤 ${esc(state.className)}　${esc(state.number)}ばん <button class="outline" style="padding:7px 12px;font-size:14px" onclick="changeProfile()">へんこう</button></div><div class="actions"><button class="outline" onclick="openGuide()">📖 ゲームの あそびかた</button><button class="primary" onclick="openLoginWardrobe()">🎁 がめんを きせかえる (${earnedThemes().length}/3)</button></div><h3>ダンジョンを えらぼう</h3><div class="grid three">${DUNGEONS.map(([id,name])=>`<button class="choice ${state.dungeon===id?'selected':''}" onclick="selectDungeon('${id}')">${name}</button>`).join('')}</div><h3>あそびかた</h3><div class="grid two"><button class="choice ${state.mode==='challenge'?'selected':''}" onclick="selectMode('challenge')"><strong>チャレンジモード</strong><span class="small">やめても まけても ステージ1から</span></button><button class="choice ${state.mode==='checkpoint'?'selected':''}" onclick="selectMode('checkpoint')"><strong>つづきからモード</strong><span class="small">まいステージ セーブ。まけても そだてて さいちょうせん</span></button></div><p class="small">きろくは このたんまつに じどうほぞん。ダンジョン・モードごとに べつの ぼうけんです。</p><div class="actions"><button class="primary" onclick="enterGame()">ぼうけんへ すすむ！</button></div>${current()?`<div class="actions"><button class="outline" onclick="restartAdventure()">このぼうけんを はじめから</button></div>`:''}<div class="actions"><button class="outline" onclick="openTestMode()">🧪 せんせいよう バトルテスト</button></div><p class="small center">テストは きろくに のこりません。</p></section>`}
 function openTestMode(){
   const pin=window.prompt('せんせいよう テスト\n4けたの あんしょうばんごうを いれてください');
   if(pin===null)return;
@@ -341,8 +341,20 @@ function setTestStage(n){state.testStage=n;render()}
 function launchTestBattle(){state.hero=state.testHero;state.testGame={...blank(),stage:state.testStage,points:30,skills:Object.keys(SKILLS),equipped:Object.keys(SKILLS)};state.testGame.stats={...TEST_HERO_STATS[state.testHero]};startBattle()}
 function exitTestMode(){state.busy=false;state.testMode=false;state.testGame=null;state.screen='home';render()}
 function selectDungeon(id){state.dungeon=id;render()}function selectMode(id){state.mode=id;render()}
+function restartAdventure(){
+ if(state.testMode||state.busy||!['home','choose'].includes(state.screen))return;
+ const g=current();if(!g)return;
+ const dungeonName=DUNGEONS.find(([id])=>id===state.dungeon)?.[1]||state.dungeon;
+ const modeName=state.mode==='checkpoint'?'つづきからモード':'チャレンジモード';
+ if(!confirm(state.className+'・'+state.number+'ばん\n'+dungeonName+'／'+modeName+'\nこの ぼうけんを はじめから やりなおす？\nのうりょく・スキル・ポイントは はじめに もどるよ。もとには もどせないよ。\nさいこうきろくと ごほうびは のこるよ。'))return;
+ clearMathFeedback();clearInterval(state.timer);state.timer=null;
+ state.hero=HEROES[g.hero]?g.hero:'attack';
+ storage.games[profile()]={...blank(),best:g.best||0,pendingHeroSelection:true};
+ state.working=null;state.skillChoice=null;state.fight=null;state.question=null;
+ save();state.screen='choose';render();
+}
 function enterGame(){const g=current();if(g)state.hero=g.hero;state.screen='choose';render()}
-function choose(b){let g=current();b.innerHTML=`<section class="panel"><h2>${g&&state.mode==='checkpoint'?'ぼうけんを つづけよう':'さいしょの なかまを えらぼう'}</h2><div class="grid three">${Object.entries(HEROES).map(([id,h])=>`<div class="monsterpick"><button class="${state.hero===id?'selected':''}" ${g&&state.mode==='checkpoint'?'disabled':''} onclick="pickHero('${id}')"><img class="monster portrait" data-hero="${id}" src="${ASSETS[id]}"><strong>${h.name}</strong><div class="small">${h.type}</div><div class="small">こう ${h.atk}／ぼう ${h.def}／はや ${h.spd}</div><div class="small">${SKILLS[h.skill][0]}</div></button></div>`).join('')}</div>${g?`<p class="center">ステージ <b>${g.stage}</b> ／ さいこう <b>${g.best}</b> ／ のこり <b>${g.points}</b> ポイント</p>`:''}<div class="actions"><button class="outline" onclick="showSkillGuide()">📖 ぜんスキルの せつめい</button></div><div class="actions"><button class="outline" onclick="backHome()">もどる</button><button class="primary" onclick="beginAdventure()">${g&&state.mode==='checkpoint'?'つづきから':'この なかまで はじめる'}</button></div></section>`}
+function choose(b){let g=current();b.innerHTML=`<section class="panel"><h2>${g&&!g.pendingHeroSelection&&state.mode==='checkpoint'?'ぼうけんを つづけよう':'さいしょの なかまを えらぼう'}</h2><div class="grid three">${Object.entries(HEROES).map(([id,h])=>`<div class="monsterpick"><button class="${state.hero===id?'selected':''}" ${g&&!g.pendingHeroSelection&&state.mode==='checkpoint'?'disabled':''} onclick="pickHero('${id}')"><img class="monster portrait" data-hero="${id}" src="${ASSETS[id]}"><strong>${h.name}</strong><div class="small">${h.type}</div><div class="small">こう ${h.atk}／ぼう ${h.def}／はや ${h.spd}</div><div class="small">${SKILLS[h.skill][0]}</div></button></div>`).join('')}</div>${g?`<p class="center">ステージ <b>${g.stage}</b> ／ さいこう <b>${g.best}</b> ／ のこり <b>${g.points}</b> ポイント</p>`:''}<div class="actions"><button class="outline" onclick="showSkillGuide()">📖 ぜんスキルの せつめい</button></div><div class="actions"><button class="outline" onclick="backHome()">もどる</button>${g?`<button class="outline" onclick="restartAdventure()">このぼうけんを はじめから</button>`:''}<button class="primary" onclick="beginAdventure()">${g&&!g.pendingHeroSelection&&state.mode==='checkpoint'?'つづきから':'この なかまで はじめる'}</button></div></section>`}
 function showSkillGuide(){
  const old=document.getElementById('skillGuide');if(old)old.remove();
  const overlay=document.createElement('div');overlay.id='skillGuide';overlay.className='skill-guide-overlay';
@@ -364,9 +376,13 @@ function showSkillGuide(){
 }
 function closeSkillGuide(){document.getElementById('skillGuide')?.remove()}
 function pickHero(id){
+ if(!HEROES[id]||state.screen!=='choose'||state.busy)return;
+ const g=current();
+ if(g&&state.mode==='checkpoint'&&!g.pendingHeroSelection)return;
  state.hero=id;
- if(state.mode==='challenge'){
-  const g=current();if(g){const best=g.best||0;storage.games[profile()]={...blank(),best};save()}
+ if(g&&(state.mode==='challenge'||g.pendingHeroSelection)){
+  const best=g.best||0,pendingHeroSelection=!!g.pendingHeroSelection;
+  storage.games[profile()]={...blank(),best,pendingHeroSelection};save();
  }
  render();
 }function quitAdventure(){
@@ -385,7 +401,7 @@ function backHome(){
  }
  state.busy=false;state.screen='home';render();
 }
-function beginAdventure(){if(current()?.stage>30){backHome();return}if(!current()){storage.games[profile()]=blank();save()}state.hero=current().hero;state.screen='math';startMath()}
+function beginAdventure(){if(current()?.stage>30){backHome();return}if(!current()){storage.games[profile()]=blank();save()}const g=current();if(g.pendingHeroSelection){delete g.pendingHeroSelection;save()}state.hero=g.hero;state.screen='math';startMath()}
 // Calculation question engine: independent of DOM, timers, and saved game data.
 const CalculationQuestions=(()=>{
  const MODES={mix:{min:0,max:10,size:11},carry:{min:11,max:18,size:8},borrow:{min:2,max:9,size:8}};
