@@ -473,7 +473,7 @@ function startMath(){
 function countdown(b){b.innerHTML=`<section class="panel center"><h2>けいさん スタート！</h2><div id="countdownNumber" style="font-size:clamp(120px,25vw,220px);font-weight:900;color:#ffdf7b;line-height:1.4;text-shadow:0 6px 0 #9b631d">${state.count}</div><p>じゅんびは いいかな？</p></section>`}
 
 function formatTime(t){return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')}
-function math(b){const g=current();b.innerHTML=`<section class="panel center"><div class="top"><span class="tag">ステージ ${g.stage}</span><b id="clock">${formatTime(state.time)}</b><span>せいかい <b id="count">${state.correct}</b> もん</span></div><div class="question" style="margin:15px 0">${state.question.text} ＝ ？</div><div class="answer" id="answer">${state.answer||''}${state.answerFeedback?` <span role="status" aria-live="polite">${state.answerFeedback}</span>`:''}</div><div class="math-keypad"><div class="numkeys">${['1','2','3','4','5','6','7','8','9','C','0','⌫'].map(k=>`<button class="${k==='C'||k==='⌫'?'outline':''}" onclick="keyPress('${k}')" ${state.mathFeedback?'disabled':''}>${k}</button>`).join('')}</div><button class="primary answer-submit" onclick="submitAnswer()" ${state.mathFeedback?'disabled':''}>こたえる</button></div><p class="small">1もん 2かいまで ちょうせん！ せいかい 1もんで 1ポイント！<br>かいとう ${state.attempts}かい${state.questionAttempts===1&&!state.mathFeedback?' ／ もういちど ちょうせん！':''}</p><div class="quit-wrap"><button class="outline quit-btn" onclick="quitAdventure()">🚪 とちゅうでやめる</button></div></section>`}
+function math(b){const g=current();b.innerHTML=`<section class="panel center"><div class="top"><span class="tag">ステージ ${g.stage}</span><b id="clock">${formatTime(state.time)}</b><span>せいかい <b id="count">${state.correct}</b> もん</span></div><div class="question" style="margin:15px 0">${state.question.text} ＝ ？</div><div class="answer" id="answer">${state.answer||''}${state.answerFeedback?` <span role="status" aria-live="polite">${state.answerFeedback}</span>`:''}</div><div class="math-keypad"><div class="numkeys">${['1','2','3','4','5','6','7','8','9','C','0','⌫'].map(k=>`<button class="${k==='C'||k==='⌫'?'outline':''}" onclick="keyPress('${k}')" ${state.mathFeedback?'disabled':''}>${k}</button>`).join('')}</div><button class="primary answer-submit" onclick="submitAnswer()" ${state.mathFeedback?'disabled':''}>こたえる</button></div><p class="small">1もん 2かいまで ちょうせん！ せいかい 1もんで 1ポイント！<br>24もん せいかいで おわり！<br>かいとう ${state.attempts}かい${state.questionAttempts===1&&!state.mathFeedback?' ／ もういちど ちょうせん！':''}</p><div class="quit-wrap"><button class="outline quit-btn" onclick="quitAdventure()">🚪 とちゅうでやめる</button></div></section>`}
 function keyPress(k){if(state.screen!=='math'||state.mathFeedback||state.time<=0)return;if(k==='C')state.answer='';else if(k==='⌫')state.answer=state.answer.slice(0,-1);else if(state.answer.length<3)state.answer+=k;const el=$('answer');if(el)el.textContent=state.answer||''}
 function submitAnswer(){
  if(state.screen!=='math'||state.mathFeedback||!state.answer||state.time<=0)return;
@@ -487,6 +487,7 @@ function submitAnswer(){
  state.mathFeedbackTimer=setTimeout(()=>{
   state.mathFeedbackTimer=null;
   if(state.screen!=='math'||state.time<=0||state.question!==question)return;
+  if(state.correct>=24){finishMath();return}
   state.mathFeedback=false;state.answerFeedback='';
   if(advance)nextQuestion();else state.answer='';
   render();

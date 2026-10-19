@@ -43,10 +43,12 @@ answer(q.ans);assert.equal(state.attempts,1); // rapid extra tap ignored
 flush();assert.equal(state.question,q);assert.equal(state.answer,'');assert.equal(session.queue.length,remaining);
 answer(q.ans);assert.equal(state.correct,1);assert.equal(state.attempts,2);assert.equal(state.answerFeedback,'◯');flush();assert.notEqual(state.question,q);assert.equal(session.queue.length,remaining-1);
 q=state.question;remaining=session.queue.length;answer(q.ans+1);flush();answer(q.ans+1);assert.equal(state.correct,1);assert.equal(state.attempts,4);assert.equal(state.answerFeedback,'✕');flush();assert.notEqual(state.question,q);assert.equal(session.queue.length,remaining-1);
-for(let i=0;i<25;i++){answer(state.question.ans);flush()}assert.equal(state.correct,26);assert.equal(state.screen,'math');
-answer(state.question.ans);state.time=0;context.finishMath();assert.equal(game.correctTotal,27);assert.equal(game.points,27);assert.equal(game.answerTotal,30);assert.equal(state.screen,'training');const finishedQuestion=state.question;flush();assert.equal(state.question,finishedQuestion);context.finishMath();assert.equal(game.points,27);
-state.answer='0';context.submitAnswer();assert.equal(state.attempts,30);
+for(let i=0;i<22;i++){answer(state.question.ans);flush()}assert.equal(state.correct,23);assert.equal(state.screen,'math');
+answer(state.question.ans);assert.equal(state.correct,24);assert.equal(state.answerFeedback,'◯');assert.equal(state.screen,'math');const finalQuestion=state.question;const finalRemaining=session.queue.length;flush();
+assert.equal(state.screen,'training');assert.equal(state.question,finalQuestion);assert.equal(session.queue.length,finalRemaining);assert.equal(game.points,24);assert.equal(game.correctTotal,24);assert.equal(game.answerTotal,27);
+state.answer='0';context.submitAnswer();assert.equal(state.attempts,27);context.finishMath();assert.equal(game.points,24);
+state.screen='math';state.time=90;state.correct=0;state.attempts=0;context.nextQuestion();answer(state.question.ans);state.time=0;context.finishMath();assert.equal(game.points,25);assert.equal(game.answerTotal,28);const finishedQuestion=state.question;flush();assert.equal(state.question,finishedQuestion);context.finishMath();assert.equal(game.points,25);
 const mathFn=s.split('\n').find(line=>line.startsWith('function math(b)'));
 const ui=vm.createContext({state:{question:{text:'9 ＋ 9'},answer:'19',answerFeedback:'✕',mathFeedback:true,correct:0,attempts:1,time:90,questionAttempts:1},current:()=>game,formatTime:()=> '1:30'});vm.runInContext(mathFn,ui);const b={};ui.math(b);assert(b.innerHTML.includes('✕'));assert(b.innerHTML.includes('aria-live="polite"'));assert(!b.innerHTML.includes('18'));assert(b.innerHTML.includes('disabled'));
 assert.equal(s,fs.readFileSync(require('path').join(__dirname,'..','keisan_dungeon_v48_enemy_balance_Index.html'),'utf8'));
-console.log('Answer flow verified: retry, skip, correct retry, no answer disclosure, double taps, no 20-correct cap, separate saved totals, timer expiry, and duplicate finish');
+console.log('Answer flow verified: retry, skip, correct retry, no answer disclosure, double taps, 24-correct cap, no extra question after cap, separate saved totals, timer expiry, and duplicate finish');
