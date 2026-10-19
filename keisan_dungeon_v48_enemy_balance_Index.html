@@ -422,10 +422,16 @@ const CalculationQuestions=(()=>{
   const answers=shuffle(Array.from({length:rule.size},(_,i)=>rule.min+i),session.rng);
   if(session.previous&&answers[0]===session.previous.ans){const i=answers.findIndex(n=>n!==session.previous.ans);[answers[0],answers[i]]=[answers[i],answers[0]]}
   const plusCount=5+Math.floor(session.rng()*2);
-  const operators=session.mode==='mix'?shuffle(Array.from({length:11},(_,i)=>i<plusCount?'+':'-'),session.rng):null;
+  // Keep 0 and 1 as subtraction, and 10 as addition, so zero operands
+  // are never required by the selected operation. Keep addition balanced at 5/6.
+  const remainingOperators=session.mode==='mix'?shuffle(Array.from({length:8},(_,i)=>i<plusCount-1?'+':'-'),session.rng):null;
+  const operators=session.mode==='mix'?answers.map(answer=>answer<=1?'-':answer===10?'+':remainingOperators.pop()):null;
+  // Half of mixed sets contain one zero-operand exercise; the rest contain none.
+  const zeroIndex=session.mode==='mix'&&session.rng()<.5?Math.floor(session.rng()*rule.size):-1;
   const planned=[...session.history];
   const questions=answers.map((answer,index)=>{
-   const pool=POOLS[session.mode][answer][operators?operators[index]:'any'];
+   const candidates=POOLS[session.mode][answer][operators?operators[index]:'any'];
+   const pool=session.mode==='mix'?candidates.filter(q=>index===zeroIndex?(q.a===0||q.b===0):(q.a>0&&q.b>0)):candidates;
    const oldest=Math.min(...pool.map(q=>planned.lastIndexOf(q.id)));
    const choices=pool.filter(q=>planned.lastIndexOf(q.id)===oldest);
    const q={...choices[Math.floor(session.rng()*choices.length)]};

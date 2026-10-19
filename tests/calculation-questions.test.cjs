@@ -9,7 +9,7 @@ for(const [mode,min,max,size] of [['mix',0,10,11],['carry',11,18,8],['borrow',2,
   for(let set=0;set<1000;set++){
    const questions=Array.from({length:size},()=>engineAPI.next(session));
    assert.deepEqual(questions.map(q=>q.ans).sort((a,b)=>a-b),Array.from({length:size},(_,i)=>min+i));
-   if(mode==='mix')assert([5,6].includes(questions.filter(q=>q.op==='+').length));
+   if(mode==='mix'){assert([5,6].includes(questions.filter(q=>q.op==='+').length));assert(questions.filter(q=>q.a===0||q.b===0).length<=1)}
    for(const q of questions){
     assert.equal(q.ans,q.op==='+'?q.a+q.b:q.a-q.b);
     if(previous){assert.notEqual(q.ans,previous.ans);assert.notEqual(q.id,previous.id)}
@@ -29,6 +29,9 @@ for(const [mode,min,max,size] of [['mix',0,10,11],['carry',11,18,8],['borrow',2,
  }
  console.log(mode+': 4,000 sets verified, ranges, balance, boundaries, diversity, and bounded history');
 }
+const zeroSession=engineAPI.createSession('mix',rng(42));let zeroCount=0,zeroSets=0;
+for(let i=0;i<1000;i++){const batch=Array.from({length:11},()=>engineAPI.next(zeroSession));const count=batch.filter(q=>q.a===0||q.b===0).length;zeroCount+=count;if(count)zeroSets++}
+assert(zeroSets>400&&zeroSets<600);console.log('Zero operands: '+zeroCount+'/11000 exercises, at most one per mixed set');
 let serial=0;const timers=new Map();const game={stage:1,points:0,correctTotal:0,stats:{atk:26,def:17,spd:17},skills:['power']};
 const context=vm.createContext({state:{screen:'math',dungeon:'carry',correct:0,attempts:0,time:90},current:()=>game,beep:()=>{},render:()=>{},save:()=>{},clearInterval:()=>{},setTimeout:fn=>{timers.set(++serial,fn);return serial},clearTimeout:id=>timers.delete(id),$:()=>({textContent:''})});
 const next=s.slice(s.indexOf('function nextQuestion(){'),s.indexOf('function startMath(){'));
