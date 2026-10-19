@@ -376,6 +376,7 @@ function pickHero(id){
  backHome();
 }
 function backHome(){
+ clearMathFeedback();
  if(state.testMode){exitTestMode();return}
  clearInterval(state.timer);state.timer=null;
  if(state.mode==='challenge'){
@@ -385,32 +386,73 @@ function backHome(){
  state.busy=false;state.screen='home';render();
 }
 function beginAdventure(){if(!current()){storage.games[profile()]=blank();save()}state.hero=current().hero;state.screen='math';startMath()}
-function nextQuestion(){
- const previousAnswer=state.question?.ans;
- let q,tries=0;
- do {
-  if(state.dungeon==='mix'){
-   if(rand(2)){
-    let a=1+rand(9), c=1+rand(10-a);
-    q={text:`${a} ＋ ${c}`,ans:a+c,id:`a${a}_${c}`};
-   }else{
-    let a=2+rand(9),c=1+rand(a);
-    q={text:`${a} − ${c}`,ans:a-c,id:`s${a}_${c}`};
+// Calculation question engine: independent of DOM, timers, and saved game data.
+const CalculationQuestions=(()=>{
+ const MODES={mix:{min:0,max:10,size:11},carry:{min:11,max:18,size:8},borrow:{min:2,max:9,size:8}};
+ const HISTORY_LIMIT=32;
+ function shuffle(items,rng){const result=[...items];for(let i=result.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result}
+ function candidates(mode,answer,operator){
+  const result=[];
+  for(let a=0;a<=18;a++)for(let b=0;b<=10;b++){
+   if(mode==='mix'&&(a>10||b>10))continue;
+   const operations=mode==='mix'?[operator]:[mode==='carry'?'+':'-'];
+   for(const op of operations){
+    if(op==='+'){
+     if(a+b!==answer)continue;
+     if(mode==='carry'&&(a<1||a>9||b<1||b>9||a+b<=10))continue;
+    }else{
+     if(a-b!==answer)continue;
+     if(mode==='borrow'&&(a<11||a>18||b<2||b>9||a%10>=b))continue;
+    }
+    result.push({a,b,op,ans:answer,text:`${a} ${op==='+'?'＋':'−'} ${b}`,id:`${op==='+'?'a':'s'}${a}_${b}`});
    }
-  }else if(state.dungeon==='carry'){
-   let a=2+rand(8),c=11-a+rand(a-1);
-   q={text:`${a} ＋ ${c}`,ans:a+c,id:`a${a}_${c}`};
-  }else{
-   let a=11+rand(8),c=(a-9)+rand(10-(a-9));
-   q={text:`${a} − ${c}`,ans:a-c,id:`s${a}_${c}`};
   }
-  tries++;
- }while((state.last.includes(q.id)||q.ans===previousAnswer)&&tries<200);
- state.last.push(q.id);
- if(state.last.length>18)state.last.shift();
- state.question=q;state.answer='';
+  return result;
+ }
+ const POOLS={};
+ for(const [mode,rule] of Object.entries(MODES)){
+  POOLS[mode]={};
+  for(let answer=rule.min;answer<=rule.max;answer++){
+   POOLS[mode][answer]=mode==='mix'?{'+':candidates(mode,answer,'+'),'-':candidates(mode,answer,'-')}:{any:candidates(mode,answer)};
+  }
+ }
+ function createSession(mode,rng=Math.random){if(!MODES[mode])throw new Error('Unknown calculation mode');return {mode,rng,queue:[],history:[],previous:null,sets:0}}
+ function generateSet(session){
+  const rule=MODES[session.mode];
+  const answers=shuffle(Array.from({length:rule.size},(_,i)=>rule.min+i),session.rng);
+  if(session.previous&&answers[0]===session.previous.ans){const i=answers.findIndex(n=>n!==session.previous.ans);[answers[0],answers[i]]=[answers[i],answers[0]]}
+  const plusCount=5+Math.floor(session.rng()*2);
+  const operators=session.mode==='mix'?shuffle(Array.from({length:11},(_,i)=>i<plusCount?'+':'-'),session.rng):null;
+  const planned=[...session.history];
+  const questions=answers.map((answer,index)=>{
+   const pool=POOLS[session.mode][answer][operators?operators[index]:'any'];
+   const oldest=Math.min(...pool.map(q=>planned.lastIndexOf(q.id)));
+   const choices=pool.filter(q=>planned.lastIndexOf(q.id)===oldest);
+   const q={...choices[Math.floor(session.rng()*choices.length)]};
+   planned.push(q.id);if(planned.length>HISTORY_LIMIT)planned.shift();
+   return q;
+  });
+  if(questions.length!==rule.size||new Set(questions.map(q=>q.ans)).size!==rule.size||questions.some(q=>q.ans<rule.min||q.ans>rule.max)||(session.previous&&questions[0].ans===session.previous.ans))throw new Error('Invalid question set');
+  session.sets++;
+  return questions;
+ }
+ function next(session){
+  if(!session.queue.length)session.queue=generateSet(session);
+  const q=session.queue.shift();session.previous=q;session.history.push(q.id);
+  if(session.history.length>HISTORY_LIMIT)session.history.shift();
+  return q;
+ }
+ return {createSession,next,generateSet};
+})();
+// End calculation question engine.
+function nextQuestion(){
+ state.questionSessions??={};
+ const session=state.questionSessions[state.dungeon]??=CalculationQuestions.createSession(state.dungeon);
+ state.question=CalculationQuestions.next(session);state.answer='';state.questionAttempts=0;state.answerFeedback='';state.mathFeedback=false;
 }
+function clearMathFeedback(){clearTimeout(state.mathFeedbackTimer);state.mathFeedbackTimer=null;state.mathFeedback=false;state.answerFeedback=''}
 function startMath(){
+ clearMathFeedback();
  clearInterval(state.timer);state.timer=null;
  state.correct=0;state.attempts=0;state.time=90;state.last=[];state.answer='';state.question=null;
  state.screen='countdown';state.count=3;render();
@@ -431,10 +473,26 @@ function startMath(){
 function countdown(b){b.innerHTML=`<section class="panel center"><h2>けいさん スタート！</h2><div id="countdownNumber" style="font-size:clamp(120px,25vw,220px);font-weight:900;color:#ffdf7b;line-height:1.4;text-shadow:0 6px 0 #9b631d">${state.count}</div><p>じゅんびは いいかな？</p></section>`}
 
 function formatTime(t){return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')}
-function math(b){const g=current();b.innerHTML=`<section class="panel center"><div class="top"><span class="tag">ステージ ${g.stage}</span><b id="clock">${formatTime(state.time)}</b><span>せいかい <b id="count">${state.correct}</b> もん</span></div><div class="question" style="margin:15px 0">${state.question.text} ＝ ？</div><div class="answer" id="answer">${state.answer||''}</div><div class="math-keypad"><div class="numkeys">${['1','2','3','4','5','6','7','8','9','C','0','⌫'].map(k=>`<button class="${k==='C'||k==='⌫'?'outline':''}" onclick="keyPress('${k}')">${k}</button>`).join('')}</div><button class="primary answer-submit" onclick="submitAnswer()">こたえる</button></div><p class="small">1もん 1かいの かいとう。せいかい 1もんで 1ポイント！</p><div class="quit-wrap"><button class="outline quit-btn" onclick="quitAdventure()">🚪 とちゅうでやめる</button></div></section>`}
-function keyPress(k){if(k==='C')state.answer='';else if(k==='⌫')state.answer=state.answer.slice(0,-1);else if(state.answer.length<3)state.answer+=k;const el=$('answer');if(el)el.textContent=state.answer||''}
-function submitAnswer(){if(!state.answer||state.time<=0)return;state.attempts++;if(Number(state.answer)===state.question.ans){state.correct++;beep(700);$('count').textContent=state.correct;if(state.correct>=20){finishMath();return}}else beep(220);nextQuestion();$('answer').textContent='';document.querySelector('.question').textContent=state.question.text+' ＝ ？'}
-function finishMath(){clearInterval(state.timer);state.timer=null;const g=current();g.points+=state.correct;g.correctTotal+=state.correct;save();state.screen='training';state.working={stats:{...g.stats},points:g.points,skills:[...g.skills],equipped:[...(g.equipped||g.skills.slice(0,3))]};state.trainingNotice=`${state.correct}もん せいかい！ ${state.correct}ポイント ゲット！`;render()}
+function math(b){const g=current();b.innerHTML=`<section class="panel center"><div class="top"><span class="tag">ステージ ${g.stage}</span><b id="clock">${formatTime(state.time)}</b><span>せいかい <b id="count">${state.correct}</b> もん</span></div><div class="question" style="margin:15px 0">${state.question.text} ＝ ？</div><div class="answer" id="answer">${state.answer||''}${state.answerFeedback?` <span role="status" aria-live="polite">${state.answerFeedback}</span>`:''}</div><div class="math-keypad"><div class="numkeys">${['1','2','3','4','5','6','7','8','9','C','0','⌫'].map(k=>`<button class="${k==='C'||k==='⌫'?'outline':''}" onclick="keyPress('${k}')" ${state.mathFeedback?'disabled':''}>${k}</button>`).join('')}</div><button class="primary answer-submit" onclick="submitAnswer()" ${state.mathFeedback?'disabled':''}>こたえる</button></div><p class="small">1もん 2かいまで ちょうせん！ せいかい 1もんで 1ポイント！<br>かいとう ${state.attempts}かい${state.questionAttempts===1&&!state.mathFeedback?' ／ もういちど ちょうせん！':''}</p><div class="quit-wrap"><button class="outline quit-btn" onclick="quitAdventure()">🚪 とちゅうでやめる</button></div></section>`}
+function keyPress(k){if(state.screen!=='math'||state.mathFeedback||state.time<=0)return;if(k==='C')state.answer='';else if(k==='⌫')state.answer=state.answer.slice(0,-1);else if(state.answer.length<3)state.answer+=k;const el=$('answer');if(el)el.textContent=state.answer||''}
+function submitAnswer(){
+ if(state.screen!=='math'||state.mathFeedback||!state.answer||state.time<=0)return;
+ state.attempts++;state.questionAttempts++;
+ const correct=Number(state.answer)===state.question.ans;
+ if(correct){state.correct++;beep(700)}else beep(220);
+ state.answerFeedback=correct?'◯':'✕';state.mathFeedback=true;
+ const advance=correct||state.questionAttempts>=2;
+ const question=state.question;
+ render();
+ state.mathFeedbackTimer=setTimeout(()=>{
+  state.mathFeedbackTimer=null;
+  if(state.screen!=='math'||state.time<=0||state.question!==question)return;
+  state.mathFeedback=false;state.answerFeedback='';
+  if(advance)nextQuestion();else state.answer='';
+  render();
+ },500);
+}
+function finishMath(){if(state.screen!=='math')return;clearMathFeedback();clearInterval(state.timer);state.timer=null;const g=current();g.points+=state.correct;g.correctTotal+=state.correct;g.answerTotal=(g.answerTotal||0)+state.attempts;save();state.screen='training';state.working={stats:{...g.stats},points:g.points,skills:[...g.skills],equipped:[...(g.equipped||g.skills.slice(0,3))]};state.trainingNotice=`${state.correct}もん せいかい！ ${state.correct}ポイント ゲット！（かいとう ${state.attempts}かい）`;render()}
 function radarChart(stats){
  const cx=150,cy=140,r=92,max=40;
  const axes=[['atk','こうげき',-Math.PI/2],['def','ぼうぎょ',Math.PI/6],['spd','すばやさ',5*Math.PI/6]];
