@@ -19,7 +19,7 @@ async function setup({stage=15,spd=100,damage=10,evoDamage=0,cpuSkill=null}={}){
  const f={hp:40,enemyHP:2000,maxEnemyHP:2000,evoDamage,evolved:false,usedSkill:true,enemyUsedSkill:false,usedHeal:false,turn:1};
  const math=Object.create(Math);math.random=()=>0;
  const c=vm.createContext({Math:math,state:{busy:false,testMode:false,fight:f},battleHelpOpen:false,current:()=>g,HEROES:{attack:{name:'ファイ'}},SKILLS:{power:['パワーストライク'],drain:['ドレインアタック']},cpuAction:()=>cpuSkill?({cmd:'skill',skill:cpuSkill}):({cmd:'attack'}),enemyInfo:()=>({name:'敵'}),enemyStats:()=>({atk:20,def:20,spd:20}),initiative:()=>spd>20,evade:()=>false,damage:()=>damage,EVOLVE_THRESHOLD:15});
- vm.runInContext(turn,c);const events=await c.takeTurn('attack');return {c,f,events};
+ vm.runInContext(line('function heroCanEvolve(')+'\n'+turn,c);const events=await c.takeTurn('attack');return {c,f,events};
 }
 (async()=>{
  let {f,events}=await setup();const hits=events.filter(e=>e.kind==='hit'&&e.recipient==='e');assert.equal(hits.length,2);assert.equal(hits[0].enemyHP,1990);assert.equal(hits[1].enemyHP,1982);assert(!f.evolved);
