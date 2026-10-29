@@ -18,7 +18,7 @@ async function setup({stage=15,spd=100,damage=10,evoDamage=0,cpuSkill=null}={}){
  const g={stage,hero:'attack',stats:{atk:30,def:20,spd}};
  const f={hp:40,enemyHP:2000,maxEnemyHP:2000,evoDamage,evolved:false,usedSkill:true,enemyUsedSkill:false,usedHeal:false,turn:1};
  const math=Object.create(Math);math.random=()=>0;
- const c=vm.createContext({Math:math,state:{busy:false,testMode:false,fight:f},battleHelpOpen:false,current:()=>g,HEROES:{attack:{name:'ファイ'}},SKILLS:{power:['パワーストライク'],drain:['ドレインアタック']},cpuAction:()=>cpuSkill?({cmd:'skill',skill:cpuSkill}):({cmd:'attack'}),enemyInfo:()=>({name:'敵'}),enemyStats:()=>({atk:20,def:20,spd:20}),initiative:()=>spd>20,evade:()=>false,damage:()=>damage,EVOLVE_THRESHOLD:15});
+ const c=vm.createContext({Math:math,state:{busy:false,testMode:false,fight:f},battleHelpOpen:false,current:()=>g,HEROES:{attack:{name:'ファイ'}},SKILLS:{power:['パワーストライク'],drain:['ドレインアタック']},cpuAction:()=>cpuSkill?({cmd:'skill',skill:cpuSkill}):({cmd:'attack'}),enemyInfo:()=>({name:'敵'}),enemyStats:()=>({atk:20,def:20,spd:20}),enemyCombatStats:()=>({atk:20,def:20,spd:20}),initiative:()=>spd>20,evade:()=>false,damage:()=>damage,EVOLVE_THRESHOLD:15});
  vm.runInContext(line('function heroCanEvolve(')+'\n'+turn,c);const events=await c.takeTurn('attack');return {c,f,events};
 }
 (async()=>{
