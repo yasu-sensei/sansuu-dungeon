@@ -6,7 +6,7 @@ vm.runInContext(line('const DUNGEON_TWO_MOCHI_IMAGES=')+'\n'+s.slice(s.indexOf('
 assert.deepEqual(Object.keys(c.images),keys);assert.equal(new Set(Object.values(c.images)).size,6);
 for(const src of Object.values(c.images))assert(src.startsWith('data:image/webp;base64,'));
 for(const dungeon of ['mix','carry','borrow'])for(let stage=1;stage<=30;stage++){
- c.state.dungeon=dungeon;const info=c.enemyInfo(stage);const expected=dungeon==='carry'&&!info.boss?c.images[info.key]:'normal-'+info.key;
+ c.state.dungeon=dungeon;const info=c.enemyInfo(stage);const expected=dungeon!=='mix'&&!info.boss?c.images[info.key]:'normal-'+info.key;
  c.state.fight.enemyEvolved=false;assert.equal(c.enemySpriteSource(stage),expected);
  // Preview must ignore a stale evolved-boss flag from the previous battle.
  c.state.fight.enemyEvolved=true;assert(c.enemyPreview(stage).includes('src="'+expected+'"'));
@@ -14,6 +14,6 @@ for(const dungeon of ['mix','carry','borrow'])for(let stage=1;stage<=30;stage++)
  else assert.equal(c.enemySpriteSource(stage),expected);
 }
 const inspect=s.slice(s.indexOf('function showMonsterInfo('),s.indexOf('function closeMonsterInfo('));assert(inspect.includes(':enemySpriteSource(g.stage)'));
-assert(s.includes(':enemySpriteSource(g.stage,ev.enemyEvolved)'));
+assert(s.includes(':enemySpriteSource(g.stage,ev.enemyEvolved,ev.keroberu)'));
 assert.equal(s,fs.readFileSync(path.join(__dirname,'..','keisan_dungeon_v48_enemy_balance_Index.html'),'utf8'));assert(Buffer.byteLength(s)<4194304);
-console.log('Passed: 6 distinct embedded evolved mochi assets; all 30 stages x 3 dungeons; carry-only replacement; preview ignores stale boss state; inspection and skills share renderer; boss evolution retained; HTML under 4 MiB');
+console.log('Passed: 6 distinct embedded evolved mochi assets; all 30 stages x 3 dungeons; carry/borrow evolved mochi; preview ignores stale boss state; inspection and skills share renderer; boss evolution retained; HTML under 4 MiB');
