@@ -660,14 +660,14 @@ const VISIBLE_SPRITE_BOUNDS=new Map();
 function visibleSpriteBounds(img){
  if(VISIBLE_SPRITE_BOUNDS.has(img.src))return VISIBLE_SPRITE_BOUNDS.get(img.src);
  const w=img.naturalWidth,h=img.naturalHeight;let bounds={width:w,height:h};
- try{const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);const pixels=ctx.getImageData(0,0,w,h).data;let left=w,top=h,right=-1,bottom=-1;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(pixels[(y*w+x)*4+3]>24){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y)}if(right>=left)bounds={width:right-left+1,height:bottom-top+1}}catch{}
+ try{const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);const pixels=ctx.getImageData(0,0,w,h).data;let left=w,top=h,right=-1,bottom=-1;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(pixels[(y*w+x)*4+3]>192){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y)}if(right>=left)bounds={width:right-left+1,height:bottom-top+1}}catch{}
  VISIBLE_SPRITE_BOUNDS.set(img.src,bounds);return bounds;
 }
 function sizeMinorEnemy(){
- const hero=$('heroSprite'),enemy=$('enemySprite');if(!hero||!enemy||!enemy.classList.contains('mochi-sprite')||!hero.complete||!enemy.complete||!hero.naturalWidth||!enemy.naturalWidth)return;
- const hb=visibleSpriteBounds(hero),eb=visibleSpriteBounds(enemy),rect=hero.getBoundingClientRect(),frame=enemy.parentElement;
- const heroFit=Math.min(rect.width/hero.naturalWidth,rect.height/hero.naturalHeight);
- const target=.75*Math.max(hb.width*heroFit,hb.height*heroFit);
+ const enemy=$('enemySprite');if(!enemy||!enemy.classList.contains('mochi-sprite')||!enemy.complete||!enemy.naturalWidth)return;
+ const eb=visibleSpriteBounds(enemy),frame=enemy.parentElement;
+ // Use one viewport-based size for every minor enemy, independent of hero/stage/form.
+ const target=.72*Math.min(frame.clientWidth-8,frame.clientHeight-8);
  const fit=Math.min(target/Math.max(eb.width,eb.height),(frame.clientWidth-8)/enemy.naturalWidth,(frame.clientHeight-8)/enemy.naturalHeight);
  if(fit>0){enemy.style.width=enemy.naturalWidth*fit+'px';enemy.style.height=enemy.naturalHeight*fit+'px'}
 }
