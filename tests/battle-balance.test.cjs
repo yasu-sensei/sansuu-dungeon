@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('p
 const s=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const line=prefix=>s.split('\n').find(l=>l.startsWith(prefix));
 const defs=['const STAGE_HP=','const BOSS_STATS=','const EVOLVE_THRESHOLD=','const ENEMIES=','function enemyStats('].map(line).join('\n');
-const data=vm.createContext({});vm.runInContext(defs+';globalThis.hp=STAGE_HP;globalThis.threshold=EVOLVE_THRESHOLD;',data);
+const data=vm.createContext({});vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+defs+';globalThis.hp=STAGE_HP;globalThis.threshold=EVOLVE_THRESHOLD;',data);
 const oldHP=[40,42,44,46,50,48,50,52,54,60,56,58,60,62,70,64,66,68,70,80,72,74,76,78,90,80,82,84,86,100];
 const oldBases=[[17,18,19],[19,19,20],[20,22,21],[23,22,22],[26,27,23]],bosses={5:[28,27,24],10:[27,27,32],15:[31,27,36],20:[29,40,27],25:[42,35,30],30:[40,40,40]};
 for(let stage=1;stage<=30;stage++){
@@ -19,7 +19,7 @@ async function setup({stage=15,spd=100,damage=10,evoDamage=0,cpuSkill=null}={}){
  const f={hp:40,enemyHP:2000,maxEnemyHP:2000,evoDamage,evolved:false,usedSkill:true,enemyUsedSkill:false,usedHeal:false,turn:1};
  const math=Object.create(Math);math.random=()=>0;
  const c=vm.createContext({Math:math,state:{busy:false,testMode:false,fight:f},battleHelpOpen:false,current:()=>g,HEROES:{attack:{name:'ファイ'}},SKILLS:{power:['パワーストライク'],drain:['ドレインアタック']},cpuAction:()=>cpuSkill?({cmd:'skill',skill:cpuSkill}):({cmd:'attack'}),enemyInfo:()=>({name:'敵'}),enemyStats:()=>({atk:20,def:20,spd:20}),enemyCombatStats:()=>({atk:20,def:20,spd:20}),initiative:()=>spd>20,evade:()=>false,damage:()=>damage,EVOLVE_THRESHOLD:15});
- vm.runInContext(line('function heroCanEvolve(')+'\n'+turn,c);const events=await c.takeTurn('attack');return {c,f,events};
+ vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+line('function heroCanEvolve(')+'\n'+turn,c);const events=await c.takeTurn('attack');return {c,f,events};
 }
 (async()=>{
  let {f,events}=await setup();const hits=events.filter(e=>e.kind==='hit'&&e.recipient==='e');assert.equal(hits.length,2);assert.equal(hits[0].enemyHP,1990);assert.equal(hits[1].enemyHP,1982);assert(!f.evolved);

@@ -8,8 +8,8 @@ async function setup({stage=5,dungeon='carry',offset=10,damage=10,cmd='attack',s
  const g={stage,hero:'attack',stats:{atk:40,def:30,spd}},f={hp:40,enemyHP:0,maxEnemyHP:0,evoDamage:14,evolved:false,enemyEvolved:false,usedSkill:false,enemyUsedSkill:false,turn:3};
  const effects=[],damageCalls=[],math=Object.create(Math);math.random=()=>surprise?0:.9999;
  const c=vm.createContext({DUNGEON_ONE_BOSS_IMAGES:{},Math:math,state:{dungeon,busy:false,testMode:false,fight:f,logs:[]},battleHelpOpen:false,current:()=>g,HEROES:{attack:{name:'ファイ'}},ASSETS:Object.fromEntries([...keys,'mochi_spring','mochi_summer','mochi_autumn','mochi_winter','mochi_dark','mochi_demon','attack'].map(k=>[k,'normal-'+k])),EVO_IMAGES:{attack:'hero-evolved'},BOSS_EVOLUTION_IMAGES:Object.fromEntries(keys.map(k=>[k,'evolved-'+k])),DUNGEON_TWO_MOCHI_IMAGES:{},SKILLS:{reflect:['リフレクトガード']},cpuAction:()=>({cmd:'attack'}),initiative:()=>true,evade:()=>false,damage:(atk,def)=>{damageCalls.push({atk,def});return damage},EVOLVE_THRESHOLD:15,$:()=>null,esc:x=>x,beep:()=>{},prepareEnemySkillWarning:()=>{},render:()=>{},endBattle:()=>{},setTimeout:fn=>{fn();return 1},document:{body:{appendChild:el=>effects.push(el)},createElement:()=>({classList:{add:()=>{},remove:()=>{}},setAttribute:()=>{},remove:()=>{}})}});
- vm.runInContext(data+'\n'+(cinematic?s.slice(start,s.indexOf('\nfunction endBattle(',start)):turn),c);
- vm.runInContext('state.fight.maxEnemyHP=STAGE_HP[current().stage-1]',c);f.enemyHP=dead?damage:f.maxEnemyHP/2+offset;
+ vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+data+'\n'+(cinematic?s.slice(start,s.indexOf('\nfunction endBattle(',start)):turn),c);
+ vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+'state.fight.maxEnemyHP=STAGE_HP[current().stage-1]',c);f.enemyHP=dead?damage:f.maxEnemyHP/2+offset;
  const base=c.enemyStats(stage),events=await c.takeTurn(cmd,skill);return {c,f,g,events,effects,base,damageCalls};
 }
 (async()=>{
@@ -25,11 +25,11 @@ async function setup({stage=5,dungeon='carry',offset=10,damage=10,cmd='attack',s
   r=await setup({stage,offset:13,spd:100,surprise:true});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,r.f.maxEnemyHP); // surprise crosses half
   r=await setup({stage,offset:5,cmd:'skill',skill:'reflect'});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,r.f.maxEnemyHP);
   r=await setup({stage,cinematic:true});assert(r.effects.some(e=>e.className==='evo-cinematic evo-attack'&&e.innerHTML.includes('ぜんのうりょく ＋7')));
-  vm.runInContext(line('function startBattle('),r.c);r.c.startBattle();assert.equal(r.c.state.fight.enemyEvolved,false);assert(r.c.enemySpriteSource(stage).startsWith('normal-'));for(const key of ['atk','def','spd'])assert.equal(r.c.enemyCombatStats(stage)[key],r.base[key]);
+  vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+line('function startBattle('),r.c);r.c.startBattle();assert.equal(r.c.state.fight.enemyEvolved,false);assert(r.c.enemySpriteSource(stage).startsWith('normal-'));for(const key of ['atk','def','spd'])assert.equal(r.c.enemyCombatStats(stage)[key],r.base[key]);
  }
  for(const dungeon of ['mix','borrow']){const r=await setup({dungeon});assert(!r.f.enemyEvolved);assert(r.c.enemySpriteSource(5).startsWith('normal-'));assert(r.c.heroCanEvolve(15))}
  for(const stage of [1,6,11,16,21,26]){const r=await setup({stage});assert(!r.f.enemyEvolved);assert(!r.f.evolved);assert.equal(r.f.evoDamage,14)}
- const assets=vm.createContext({DUNGEON_ONE_BOSS_IMAGES:{},});vm.runInContext(line('const BOSS_EVOLUTION_IMAGES=')+';globalThis.assets=BOSS_EVOLUTION_IMAGES;',assets);assert.deepEqual(Object.keys(assets.assets),keys);for(const src of Object.values(assets.assets))assert(src.startsWith('data:image/webp;base64,'));
+ const assets=vm.createContext({DUNGEON_ONE_BOSS_IMAGES:{},});vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+line('const BOSS_EVOLUTION_IMAGES=')+';globalThis.assets=BOSS_EVOLUTION_IMAGES;',assets);assert.deepEqual(Object.keys(assets.assets),keys);for(const src of Object.values(assets.assets))assert(src.startsWith('data:image/webp;base64,'));
  assert(Buffer.byteLength(s)<4194304);assert(!s.includes('__SCORPION_ASSET__'));assert.equal(s,fs.readFileSync(path.join(__dirname,'..','keisan_dungeon_v48_enemy_balance_Index.html'),'utf8'));
  console.log('Passed: all six carry bosses, exact/above half HP, full heal once, all combat stats +7 once, attack uses bonus, surprise/reflection triggers, no revival at zero, cinematic, reset, no carry awakening stack, dungeon isolation, 6 embedded assets, HTML under 4 MiB');
 })().catch(e=>{console.error(e);process.exitCode=1});

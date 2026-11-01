@@ -5,7 +5,7 @@ const restart=s.slice(s.indexOf('function restartAdventure(){'),s.indexOf('funct
 const pick=s.slice(s.indexOf('function pickHero(id){'),s.indexOf('function quitAdventure(){'));
 let accept=true,saves=0,started=0,snapshot,prompt;
 const ctx=vm.createContext({state:{className:'1ねん1くみ',number:'1',dungeon:'mix',mode:'checkpoint',screen:'choose',hero:'attack',busy:false},storage:{games:{},className:'1ねん1くみ',number:'1',profileRegistered:true,loginRewards:{student:{mix:true}},masterUnlocks:{student:true}},DUNGEONS:[['mix','10まで'],['carry','20まで足し算'],['borrow','20まで引き算']],HEROES:{attack:{name:'ファイ',atk:26,def:17,spd:17,skill:'power'},defense:{name:'グリー',atk:17,def:26,spd:17,skill:'reflect'},speed:{name:'ソラ',atk:17,def:18,spd:25,skill:'swift'}},ASSETS:{},EVO_IMAGES:{},SKILLS:{power:['power'],reflect:['reflect'],swift:['swift']},confirm:text=>{prompt=text;return accept},clearMathFeedback:()=>{},clearInterval:()=>{},render:()=>{},save:()=>{saves++;snapshot=JSON.stringify(ctx.storage)},startMath:()=>{started++},backHome:()=>{ctx.state.screen='home'}});
-vm.runInContext(one('heroBaseBonus')+'\n'+one('heroSpriteSource')+'\n'+one('profile')+'\nfunction current(){return storage.games[profile()]}\n'+one('blank')+'\n'+restart+'\n'+pick+'\n'+one('beginAdventure')+'\n'+one('choose'),ctx);
+vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+one('heroBaseBonus')+'\n'+one('heroSpriteSource')+'\n'+one('profile')+'\nfunction current(){return storage.games[profile()]}\n'+one('blank')+'\n'+restart+'\n'+pick+'\n'+one('beginAdventure')+'\n'+one('choose'),ctx);
 for(const mode of ['checkpoint'])for(const dungeon of ['mix','carry','borrow']){
  ctx.state.mode=mode;ctx.state.dungeon=dungeon;ctx.state.screen='choose';ctx.state.hero='attack';ctx.state.testMode=false;
  const key=ctx.profile();ctx.storage.games[key]={hero:'attack',stage:31,best:30,stats:{atk:80,def:60,spd:50},points:19,skills:['power','reflect'],equipped:['reflect'],correctTotal:99,answerTotal:111,checkpoint:{stage:26}};
@@ -22,7 +22,7 @@ for(const mode of ['checkpoint'])for(const dungeon of ['mix','carry','borrow']){
 assert.equal(started,3);
 ctx.state.screen='choose';ctx.state.mode='challenge';ctx.storage.games[ctx.profile()]={hero:'attack',stage:1,best:30,points:0};const challengeSnapshot=JSON.stringify(ctx.storage),challengeSaves=saves;ctx.restartAdventure();assert.equal(JSON.stringify(ctx.storage),challengeSnapshot);assert.equal(saves,challengeSaves);const challengeUI={};ctx.choose(challengeUI);assert(!challengeUI.innerHTML.includes('このぼうけんを はじめから'));
 ctx.state.mode='checkpoint';const savedUI={};ctx.choose(savedUI);assert(savedUI.innerHTML.includes('このぼうけんを はじめから'));
-ctx.earnedThemes=()=>[];ctx.esc=x=>x;vm.runInContext(one('home'),ctx);
+ctx.earnedThemes=()=>[];ctx.esc=x=>x;vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+one('home'),ctx);
 for(const mode of ['checkpoint','challenge'])for(const dungeon of ['mix','carry','borrow']){
  ctx.state.mode=mode;ctx.state.dungeon=dungeon;const b={};ctx.home(b);assert(!b.innerHTML.includes('restartAdventure'));
  assert(b.innerHTML.indexOf('つづきからモード')<b.innerHTML.indexOf('チャレンジモード'));

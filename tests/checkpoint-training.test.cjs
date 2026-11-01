@@ -6,7 +6,7 @@ const helpers=s.slice(s.indexOf('function persistTraining(){'),s.indexOf('functi
 const end=s.slice(s.indexOf('function endBattle(won){'),s.indexOf('\nfunction result('));
 let saved,saves=0,confirmed=true,started=0;
 const ctx=vm.createContext({HEROES:heroes,STAGE_HP:Array(30).fill(50),state:{screen:'training',mode:'checkpoint',hero:'attack',dungeon:'mix',busy:false},storage:{games:{},masterUnlocks:{},loginRewards:{},loginThemes:{}},confirm:()=>confirmed,save:()=>{saves++;saved=JSON.stringify(ctx.storage)},masterStudentKey:()=> '1_1',enemyStats:()=>({}),enemyInfo:()=>({boss:false,name:'敵'}),startMath:()=>{started++}});
-vm.runInContext("function current(){return state.testMode?state.testGame:storage.games[state.dungeon+'_'+state.mode]}\n"+one('blank')+'\n'+helpers+'\n'+end+'\n'+one('raise')+'\n'+one('startBattle')+'\n'+one('resume')+'\n'+one('confirmTraining')+'\n'+one('finishMath')+'\n'+one('clearMathFeedback'),ctx);
+vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+"function current(){return state.testMode?state.testGame:storage.games[state.dungeon+'_'+state.mode]}\n"+one('blank')+'\n'+helpers+'\n'+end+'\n'+one('raise')+'\n'+one('startBattle')+'\n'+one('resume')+'\n'+one('confirmTraining')+'\n'+one('finishMath')+'\n'+one('clearMathFeedback'),ctx);
 ctx.clearTimeout=()=>{};ctx.clearInterval=()=>{};
 ctx.render=()=>ctx.persistTraining();
 function fresh(stage=10,hero='attack'){
