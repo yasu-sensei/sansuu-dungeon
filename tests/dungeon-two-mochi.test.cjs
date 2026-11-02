@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('p
 const s=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'),line=prefix=>s.split('\n').find(l=>l.startsWith(prefix));
 const keys=['mochi_spring','mochi_summer','mochi_autumn','mochi_winter','mochi_dark','mochi_demon'],bosses=['boss','boss10','boss15','boss20','boss25','boss30'];
 const c=vm.createContext({DUNGEON_THREE_BOSS_NAMES:{},DUNGEON_THREE_BOSS_IMAGES:{},DUNGEON_ONE_BOSS_IMAGES:{},state:{dungeon:'mix',fight:{enemyEvolved:false}},ASSETS:Object.fromEntries([...keys,...bosses].map(k=>[k,'normal-'+k])),BOSS_EVOLUTION_IMAGES:Object.fromEntries(bosses.map(k=>[k,'evolved-'+k])),STAGE_HP:Array(30).fill(50),enemyStats:()=>({atk:10,def:10,spd:10,skills:[]})});
-vm.runInContext(line('const DUNGEON_TWO_MOCHI_IMAGES=')+'\n'+s.slice(s.indexOf('const STAGE_ENEMIES='),s.indexOf('function heroBaseBonus(')).replace(line('const DUNGEON_TWO_MOCHI_IMAGES='),'')+'\n'+line('function enemyInfo(')+'\n'+line('function enemySpriteSource(')+'\n'+line('function enemyPreview(')+';globalThis.images=DUNGEON_TWO_MOCHI_IMAGES;',c);
+vm.runInContext(line('const DUNGEON_TWO_MOCHI_IMAGES=')+'\n'+s.slice(s.indexOf('const STAGE_ENEMIES='),s.indexOf('function heroBaseBonus(')).replace(line('const DUNGEON_TWO_MOCHI_IMAGES='),'')+'\n'+line('function enemyInfo(')+'\n'+line('function enemySpriteSource(')+'\n'+line('function enemyMaxHP(')+'\n'+line('function enemyPreview(')+';globalThis.images=DUNGEON_TWO_MOCHI_IMAGES;',c);
 assert.deepEqual(Object.keys(c.images),keys);assert.equal(new Set(Object.values(c.images)).size,6);
 for(const src of Object.values(c.images))assert(src.startsWith('data:image/webp;base64,'));
 for(const dungeon of ['mix','carry','borrow'])for(let stage=1;stage<=30;stage++){
