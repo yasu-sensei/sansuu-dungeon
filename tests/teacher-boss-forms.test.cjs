@@ -10,7 +10,7 @@ for(const stage of [5,10,15,20,25,30])for(const form of ['evolved','normal']){
  c.state.screen='testSetup';c.setTestStage(stage);c.setTestBossForm(form);const ui={};c.testSetup(ui);assert(ui.innerHTML.includes('ダンジョン2'));assert(ui.innerHTML.includes('しんかまえ'));assert(ui.innerHTML.includes('しんかご'));
  const key=c.enemyInfo(stage).key,bonus=form==='evolved'?7:0,base=c.enemyStats(stage);
  assert(ui.innerHTML.includes('src="'+(bonus?'evolved-':'normal-')+key+'"'));assert(ui.innerHTML.includes('こうげき '+(base.atk+bonus)));
- c.launchTestBattle();assert.equal(c.state.fight.enemyEvolved,!!bonus);assert.equal(c.state.fight.enemyHP,c.state.fight.maxEnemyHP);assert.equal(c.enemyCombatStats(stage).atk,base.atk+bonus);assert.equal(c.enemyCombatStats(stage).def,base.def+bonus);assert.equal(c.enemyCombatStats(stage).spd,base.spd+bonus);
+ c.launchTestBattle();assert.equal(c.state.fight.enemyEvolved,!!bonus);assert.equal(c.state.fight.enemyHP,bonus?Math.round(c.state.fight.maxEnemyHP*.7):c.state.fight.maxEnemyHP);assert.equal(c.enemyCombatStats(stage).atk,base.atk+bonus);assert.equal(c.enemyCombatStats(stage).def,base.def+bonus);assert.equal(c.enemyCombatStats(stage).spd,base.spd+bonus);
 }
 for(const dungeon of ['mix','borrow']){c.state.screen='testSetup';c.setTestDungeon(dungeon);c.setTestStage(5);c.setTestBossForm('evolved');c.launchTestBattle();assert.equal(c.state.fight.enemyEvolved,false);assert.equal(c.enemySpriteSource(5),'normal-boss')}
 c.state.screen='testSetup';c.setTestDungeon('carry');c.setTestStage(1);c.launchTestBattle();assert.equal(c.state.fight.enemyEvolved,false);assert.equal(c.enemySpriteSource(1),'evolved-mochi_spring');

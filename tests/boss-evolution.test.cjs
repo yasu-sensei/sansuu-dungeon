@@ -15,21 +15,21 @@ async function setup({stage=5,dungeon='carry',offset=10,damage=10,cmd='attack',s
 (async()=>{
  for(const stage of [5,10,15,20,25,30]){
   let r=await setup({stage,damage:9});assert(!r.f.enemyEvolved);assert.equal(r.f.enemyHP,r.f.maxEnemyHP/2+1);
-  r=await setup({stage});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,r.f.maxEnemyHP);assert.equal(r.events.filter(e=>e.kind==='enemyEvolve').length,1);assert(!r.f.bossAwake);
+  r=await setup({stage});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,Math.round(r.f.maxEnemyHP*.7));assert.equal(r.events.filter(e=>e.kind==='enemyEvolve').length,1);assert(!r.f.bossAwake);
   for(const key of ['atk','def','spd'])assert.equal(r.c.enemyCombatStats(stage)[key],r.base[key]+7);
   assert.equal(r.damageCalls[1].atk,r.base.atk+7); // evolved attack is used by actual same-turn combat
   assert(r.c.enemySpriteSource(stage).startsWith('evolved-'));
   r.f.enemyHP=r.f.maxEnemyHP/2+10;const again=await r.c.takeTurn('attack');assert.equal(r.f.enemyHP,r.f.maxEnemyHP/2);assert(!again.some(e=>e.kind==='enemyEvolve'));
   for(const key of ['atk','def','spd'])assert.equal(r.c.enemyCombatStats(stage)[key],r.base[key]+7);
   r=await setup({stage,dead:true});assert.equal(r.f.enemyHP,0);assert(!r.f.enemyEvolved);
-  r=await setup({stage,offset:13,spd:100,surprise:true});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,r.f.maxEnemyHP); // surprise crosses half
-  r=await setup({stage,offset:5,cmd:'skill',skill:'reflect'});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,r.f.maxEnemyHP);
-  r=await setup({stage,cinematic:true});assert(r.effects.some(e=>e.className==='evo-cinematic evo-attack'&&e.innerHTML.includes('ぜんのうりょく ＋7')));
+  r=await setup({stage,offset:13,spd:100,surprise:true});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,Math.round(r.f.maxEnemyHP*.7)); // surprise crosses half
+  r=await setup({stage,offset:5,cmd:'skill',skill:'reflect'});assert(r.f.enemyEvolved);assert.equal(r.f.enemyHP,Math.round(r.f.maxEnemyHP*.7));
+  r=await setup({stage,cinematic:true});assert(r.effects.some(e=>e.className==='evo-cinematic evo-attack'&&e.innerHTML.includes('ぜんのうりょく ＋7')&&e.innerHTML.includes('HP70％まで かいふく！')));
   vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+line('function startBattle('),r.c);r.c.startBattle();assert.equal(r.c.state.fight.enemyEvolved,false);assert(r.c.enemySpriteSource(stage).startsWith('normal-'));for(const key of ['atk','def','spd'])assert.equal(r.c.enemyCombatStats(stage)[key],r.base[key]);
  }
  for(const dungeon of ['mix','borrow']){const r=await setup({dungeon});assert(!r.f.enemyEvolved);assert(r.c.enemySpriteSource(5).startsWith('normal-'));assert(r.c.heroCanEvolve(15))}
  for(const stage of [1,6,11,16,21,26]){const r=await setup({stage});assert(!r.f.enemyEvolved);assert(!r.f.evolved);assert.equal(r.f.evoDamage,14)}
  const assets=vm.createContext({DUNGEON_THREE_BOSS_NAMES:{},DUNGEON_THREE_BOSS_IMAGES:{},DUNGEON_ONE_BOSS_IMAGES:{},});vm.runInContext(require('./party-test-helpers.cjs')(s)+'\n'+line('const BOSS_EVOLUTION_IMAGES=')+';globalThis.assets=BOSS_EVOLUTION_IMAGES;',assets);assert.deepEqual(Object.keys(assets.assets),keys);for(const src of Object.values(assets.assets))assert(src.startsWith('data:image/webp;base64,'));
  assert(Buffer.byteLength(s)<4194304);assert(!s.includes('__SCORPION_ASSET__'));assert.equal(s,fs.readFileSync(path.join(__dirname,'..','keisan_dungeon_v48_enemy_balance_Index.html'),'utf8'));
- console.log('Passed: all six carry bosses, exact/above half HP, full heal once, all combat stats +7 once, attack uses bonus, surprise/reflection triggers, no revival at zero, cinematic, reset, no carry awakening stack, dungeon isolation, 6 embedded assets, HTML under 4 MiB');
+ console.log('Passed: all six carry bosses, exact/above half HP, 70% HP recovery once, all combat stats +7 once, attack uses bonus, surprise/reflection triggers, no revival at zero, cinematic, reset, no carry awakening stack, dungeon isolation, 6 embedded assets, HTML under 4 MiB');
 })().catch(e=>{console.error(e);process.exitCode=1});

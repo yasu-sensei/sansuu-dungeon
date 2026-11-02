@@ -1,0 +1,13 @@
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),assert=require('assert');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.setContent(fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'));const saved=await page.evaluate(()=>JSON.stringify(storage));
+await page.evaluate(()=>{window.nativeTimeout=setTimeout;window.setTimeout=(fn,ms,...a)=>nativeTimeout(fn,Math.min(ms,5),...a);Math.random=()=>.9999;cpuAction=()=>({cmd:'attack'});initiative=()=>true;evade=()=>false;damage=()=>1});
+for(const stage of [5,10,15,20,25,30]){
+ const hp=await page.evaluate(stage=>{state.dungeon='carry';state.testMode=true;state.testStage=stage;state.testHero='attack';state.testBossForm='evolved';state.screen='testSetup';render();return STAGE_HP[stage-1]},stage);const recovered=Math.round(hp*.7);
+ assert((await page.locator('#body').textContent()).includes('HP '+recovered+' / '+hp));await page.evaluate(()=>launchTestBattle());assert.equal(await page.locator('#enemyHPText').textContent(),'HP '+recovered+' / '+hp);
+ await page.evaluate(()=>{state.testBossForm='normal';launchTestBattle()});assert.equal(await page.locator('#enemyHPText').textContent(),'HP '+hp+' / '+hp);
+ await page.evaluate(hp=>{state.fight.enemyHP=Math.floor(hp/2)+1;state.fight.usedSkill=true;state.fight.usedHeal=true;render()},hp);await page.evaluate(()=>takeTurn('attack'));
+ const result=await page.evaluate(()=>({enemyHP:state.fight.enemyHP,maxHP:state.fight.maxEnemyHP,evolved:state.fight.enemyEvolved,stats:enemyCombatStats(current().stage),base:enemyStats(current().stage),logs:state.logs.join('\n'),usedSkill:state.fight.usedSkill,usedHeal:state.fight.usedHeal}));
+ assert.equal(result.enemyHP,recovered);assert.equal(result.maxHP,hp);assert(result.evolved);for(const key of ['atk','def','spd'])assert.equal(result.stats[key],result.base[key]+7);assert(result.usedSkill&&result.usedHeal);assert(!result.logs.includes('HPぜんかいふく'));assert.equal(await page.locator('#enemyHPText').textContent(),'HP '+recovered+' / '+hp);
+}
+assert.equal(await page.evaluate(()=>JSON.stringify(storage)),saved);assert.equal(errors.length,0,errors.join('\n'));console.log('Passed: all 6 carry bosses recover to rounded 70% of max HP on actual evolution; max HP and +7 stats unchanged; teacher preview/direct evolved form matches; player resources preserved; no save writes or old full-heal caption');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
