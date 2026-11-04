@@ -1,5 +1,5 @@
 const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),assert=require('assert');
-(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const page=await browser.newPage({viewport:{width:1366,height:768}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.setContent(fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const page=await browser.newPage({viewport:{width:1366,height:768}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.evaluate(()=>{Date.now=()=>Date.parse('2026-11-04T03:00:00Z')});await page.setContent(fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'));
 const before=await page.evaluate(()=>JSON.stringify(storage));
 const names=['ヴェルミラ','ガルゼクト','グラシオン','ゼルガルド','ヴァルゼイン','アウレリオン'];
 for(const [i,name] of names.entries()){

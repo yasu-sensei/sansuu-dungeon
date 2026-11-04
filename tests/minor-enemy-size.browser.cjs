@@ -1,5 +1,5 @@
 const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),assert=require('assert');
-(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const page=await browser.newPage();await page.setContent(fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const page=await browser.newPage();await page.evaluate(()=>{Date.now=()=>Date.parse('2026-11-04T03:00:00Z')});await page.setContent(fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'));
 for(const viewport of [{width:1366,height:768},{width:844,height:390},{width:568,height:320}]){
  await page.setViewportSize(viewport);let fixedSize=null;for(const stage of [1,6,11,16,21,26])for(const hero of ['attack','defense','speed'])for(const [dungeon,wave] of [['mix',false],['carry',false],['borrow',false],['borrow',true]]){
  await page.evaluate(({hero,dungeon,wave,stage})=>{state.hero=hero;state.dungeon=dungeon;state.testMode=true;state.testGame={...blank(),stage,skills:['power'],equipped:['power']};startBattle();if(wave){state.fight.enemyHP=0;arriveKeroberu();render()}}, {hero,dungeon,wave,stage});

@@ -1,5 +1,5 @@
 const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),assert=require('assert');
-(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.setContent(fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'));
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.evaluate(()=>{Date.now=()=>Date.parse('2026-11-04T03:00:00Z')});await page.setContent(fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8'));
 const saved=await page.evaluate(()=>{const k=masterStudentKey();storage.games[profile()]={...blank(),stage:27,best:26,points:29,correctTotal:123};storage.loginRewards[k]={mix:true,carry:true,borrow:true};storage.masterUnlocks[k]=true;return JSON.stringify(storage.games)});
 for(const viewport of [{width:1366,height:768},{width:844,height:390},{width:568,height:320}]){
  await page.setViewportSize(viewport);
