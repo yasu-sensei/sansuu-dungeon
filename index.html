@@ -363,9 +363,27 @@ const ENEMIES=[{atk:17,def:18,spd:19,skills:['power']},{atk:19,def:19,spd:20,ski
 const KEY='sansuu_dungeon_proto_v1';let storage={};try{storage=JSON.parse(localStorage.getItem(KEY)||'{}')}catch{};storage.games??={};storage.sound??=false;storage.masterUnlocks??={};storage.loginRewards??={};storage.loginThemes??={};
 let state={screen:'landing',dungeon:'mix',mode:'checkpoint',hero:'attack',className:storage.className||'1ねん1くみ',number:storage.number||'1',answer:'',question:null,last:[],correct:0,attempts:0,time:90,timer:null,working:null,skillChoice:null,logs:[],busy:false};
 const $=id=>document.getElementById(id);const rand=n=>Math.floor(Math.random()*n);const clamp=(lo,hi,v)=>Math.max(lo,Math.min(hi,v));const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function save(){try{localStorage.setItem(KEY,JSON.stringify(storage))}catch(e){alert('ほぞんできませんでした。ブラウザの せっていを かくにんしてね。')}}
-function profile(){return state.className+'_'+state.number+'_'+state.dungeon+'_'+state.mode}
-function masterStudentKey(){return state.className+'_'+state.number}
+function save(){try{storage.dailyBattles=dailyBattleUsage();localStorage.setItem(KEY,JSON.stringify(storage))}catch(e){alert('ほぞんできませんでした。ブラウザの せっていを かくにんしてね。')}}
+function profile(){return 'device_'+state.dungeon+'_'+state.mode}
+function masterStudentKey(){return 'device'}
+const DAILY_BATTLE_LIMIT=6;
+function japanDay(){return new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10)}
+function dailyBattleUsage(){const date=japanDay();let disk={};try{disk=JSON.parse(localStorage.getItem(KEY)||'{}')}catch{}const count=v=>v?.date===date?Math.max(0,Math.min(DAILY_BATTLE_LIMIT,Number(v.used)||0)):0;return {date,used:Math.max(count(storage.dailyBattles),count(disk?.dailyBattles))}}
+function dailyBattlesRemaining(){return Math.max(0,DAILY_BATTLE_LIMIT-dailyBattleUsage().used)}
+function isDungeonUnlocked(id){return id==='mix'||!!storage.dungeon1Cleared||!!storage.loginRewards.device?.mix||['checkpoint','challenge'].some(mode=>{const g=storage.games['device_mix_'+mode];return g&&(g.best>=30||g.stage>30)})}
+function showDailyLimit(){clearMathFeedback();clearInterval(state.timer);state.timer=null;state.busy=false;state.screen='home';render()}
+function guardAdventure(){if(state.testMode)return true;if(!isDungeonUnlocked(state.dungeon)){state.dungeon='mix';state.adventureNotice='ダンジョン1を クリアすると あそべるよ。';state.screen='home';render();return false}if(dailyBattlesRemaining()===0){showDailyLimit();return false}return true}
+function consumeDailyBattle(){if(state.testMode)return true;const usage=dailyBattleUsage();if(usage.used>=DAILY_BATTLE_LIMIT)return false;storage.dailyBattles={date:usage.date,used:usage.used+1};save();return true}
+function migrateDeviceProfile(){
+ if(storage.deviceProfileVersion===1)return;
+ const old=(storage.className||'1ねん1くみ')+'_'+(storage.number||'1');
+ for(const [id] of DUNGEONS)for(const mode of ['checkpoint','challenge']){const key='device_'+id+'_'+mode,g=storage.games[old+'_'+id+'_'+mode];if(!storage.games[key]&&g)storage.games[key]=JSON.parse(JSON.stringify(g))}
+ storage.loginRewards.device={...(storage.loginRewards[old]||{}),...(storage.loginRewards.device||{})};
+ if(!storage.loginThemes.device&&storage.loginThemes[old])storage.loginThemes.device=storage.loginThemes[old];
+ if(storage.masterUnlocks[old])storage.masterUnlocks.device=true;
+ storage.dungeon1Cleared=!!storage.dungeon1Cleared||isDungeonUnlocked('carry');storage.deviceProfileVersion=1;save();
+}
+
 function masterUnlocked(){const key=masterStudentKey();return !!storage.masterUnlocks[key] || Object.entries(storage.games).some(([id,g])=>id.startsWith(key+'_')&&g&&g.best>=30)}
 function rewardPreviewSource(id){for(const sheet of document.styleSheets)for(const rule of sheet.cssRules){if(rule.selectorText==='.landing-art.reward-'+id){const match=rule.style.backgroundImage.match(/url\(["']?(data:image\/[^)"']+)["']?\)/);if(match)return match[1]}}return ''}
 const REWARD_PREVIEWS=Object.fromEntries(['mix','carry','borrow'].map(id=>[id,rewardPreviewSource(id)]));
@@ -385,20 +403,21 @@ function current(){return state.testMode?state.testGame:storage.games[profile()]
 // forfeits the run while preserving the best cleared stage.
 function resetChallengeRuns(){
  for(const [key,g] of Object.entries(storage.games)){
-  if(!key.endsWith('_challenge')||!g)continue;
+  if(!key.startsWith('device_')||!key.endsWith('_challenge')||!g)continue;
   const h=HEROES[g.hero]||HEROES.attack;
   storage.games[key]={hero:g.hero||'attack',stage:1,best:g.best||0,points:0,
    stats:{atk:h.atk,def:h.def,spd:h.spd},skills:[h.skill],equipped:[h.skill],correctTotal:0,checkpoint:null};
  }
  save();
 }
+migrateDeviceProfile();
 resetChallengeRuns();
-function render(){const a=$('app');if(state.screen==='evoUnlock'){a.innerHTML=`<section class="panel center"><h1>✨ しんかの ちからが めざめた！</h1><p>ステージ15からは バトルで ピンチになると<br>しんかゲージが たまるよ！</p><p>いっぱいになると じどうで しんか！<br>HPが ぜんかいふく！ もっと つよくなる！<br>スキルも また 1かい つかえるよ！</p><h2>ピンチは チャンス！</h2><button class="primary" onclick="state.screen='result';render()">わかった！</button></section>`;return}if(state.screen==='landing'){const theme=currentLoginTheme();a.innerHTML=`<div class="landing"><div class="landing-art ${theme?'reward-'+theme:(masterUnlocked()?'master-login':'')}"><button class="landing-hit" aria-label="ログインしてぼうけんをはじめる" title="ログイン" onclick="loginIntro()"></button></div></div>`;return}if(state.screen==='wardrobe'){a.innerHTML='<div class="top"><h1>🎁 がめんの きせかえ</h1></div><div id="body"></div>';renderLoginWardrobe($('body'));return}if(state.screen==='guide'){a.innerHTML='';renderGuide(a);return}a.innerHTML=`<div class="top"><h1>⚔ けいさんダンジョン</h1><button class="outline" onclick="toggleSound()">${storage.sound?'🔊 おと ON':'🔇 おと OFF'}</button></div><div id="body"></div>`;const b=$('body');({home,register,choose,countdown,math,training,battle,result,testSetup})[state.screen]?.(b)}
+function render(){const a=$('app');if(state.screen==='evoUnlock'){a.innerHTML=`<section class="panel center"><h1>✨ しんかの ちからが めざめた！</h1><p>ステージ15からは バトルで ピンチになると<br>しんかゲージが たまるよ！</p><p>いっぱいになると じどうで しんか！<br>HPが ぜんかいふく！ もっと つよくなる！<br>スキルも また 1かい つかえるよ！</p><h2>ピンチは チャンス！</h2><button class="primary" onclick="state.screen='result';render()">わかった！</button></section>`;return}if(state.screen==='landing'){const theme=currentLoginTheme();a.innerHTML=`<div class="landing"><div class="landing-art ${theme?'reward-'+theme:(masterUnlocked()?'master-login':'')}"><button class="landing-hit" aria-label="ログインしてぼうけんをはじめる" title="ログイン" onclick="loginIntro()"></button></div></div>`;return}if(state.screen==='wardrobe'){a.innerHTML='<div class="top"><h1>🎁 がめんの きせかえ</h1></div><div id="body"></div>';renderLoginWardrobe($('body'));return}if(state.screen==='guide'){a.innerHTML='';renderGuide(a);return}a.innerHTML=`<div class="top"><h1>⚔ けいさんダンジョン</h1><button class="outline" onclick="toggleSound()">${storage.sound?'🔊 おと ON':'🔇 おと OFF'}</button></div><div id="body"></div>`;const b=$('body');({home,choose,countdown,math,training,battle,result,testSetup})[state.screen]?.(b)}
 
 let guidePage=0;
-function loginIntro(){if(storage.guideSeen){state.screen=hasProfile()?'home':'register';render()}else{guidePage=0;state.screen='guide';render()}}
+function loginIntro(){if(storage.guideSeen){state.screen='home';render()}else{guidePage=0;state.screen='guide';render()}}
 function openGuide(){guidePage=0;state.screen='guide';render()}
-function finishGuide(){storage.guideSeen=true;save();state.screen=hasProfile()?'home':'register';render()}
+function finishGuide(){storage.guideSeen=true;save();state.screen='home';render()}
 function guideNext(){if(guidePage<2){guidePage++;render()}else finishGuide()}
 function guideBack(){if(guidePage>0){guidePage--;render()}else{state.screen='landing';render()}}
 function renderGuide(a){
@@ -412,18 +431,7 @@ function renderGuide(a){
 }
 function toggleSound(){storage.sound=!storage.sound;save();render();if(storage.sound)beep(700,.08)}
 let audioCtx;function beep(freq=480,dur=.09){if(!storage.sound)return;try{audioCtx??=new(window.AudioContext||window.webkitAudioContext)();let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=freq;o.type='sine';g.gain.value=.035;o.connect(g);g.connect(audioCtx.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);o.stop(audioCtx.currentTime+dur)}catch{}}
-function hasProfile(){return !!(storage.profileRegistered || (storage.className && storage.number))}
-function register(b){
- const currentClass=storage.className||state.className;
- const currentNumber=storage.number||state.number;
- const classes=[1,2,3,4].map(n=>`1ねん${n}くみ`);
- const classOptions='<option value="">えらんでね</option>'+classes.map(c=>`<option value="${c}" ${currentClass===c?'selected':''}>${c}</option>`).join('');
- const numberOptions='<option value="">えらんでね</option>'+Array.from({length:35},(_,i)=>String(i+1)).map(n=>`<option value="${n}" ${String(currentNumber)===n?'selected':''}>${n}ばん</option>`).join('');
- b.innerHTML=`<section class="panel"><h2>👤 はじめての とうろく</h2><p>さいしょに 1かいだけ、がっきゅうと しゅっせきばんごうを えらんでね。</p><div class="grid two"><label>がっきゅう<select id="className" style="width:100%;padding:12px;border-radius:10px;font-size:18px">${classOptions}</select></label><label>しゅっせきばんごう<select id="number" style="width:100%;padding:12px;border-radius:10px;font-size:18px">${numberOptions}</select></label></div><p class="small">きろくは このたんまつに ほぞんされます。</p><div class="actions"><button class="primary" onclick="saveProfile()">とうろくして すすむ！</button></div></section>`;
-}
-function saveProfile(){const cn=$('className').value,num=$('number').value;if(!/^1ねん[1-4]くみ$/.test(cn)|| !/^(?:[1-9]|[12][0-9]|3[0-5])$/.test(num)){alert('がっきゅうと しゅっせきばんごうを えらんでね。');return}state.className=cn;state.number=num;storage.className=cn;storage.number=num;storage.profileRegistered=true;save();state.screen='home';render()}
-function changeProfile(){state.screen='register';render()}
-function home(b){b.innerHTML=`<section class="panel"><h2>ぼうけんの じゅんび</h2><div class="profile-summary">👤 ${esc(state.className)}　${esc(state.number)}ばん <button class="outline" style="padding:7px 12px;font-size:14px" onclick="changeProfile()">へんこう</button></div><div class="actions"><button class="outline" onclick="openGuide()">📖 ゲームの あそびかた</button><button class="primary" onclick="openLoginWardrobe()">🎁 がめんを きせかえる (${earnedThemes().length}/3)</button></div><h3>ダンジョンを えらぼう</h3><div class="grid three">${DUNGEONS.map(([id,name])=>`<button class="choice adventure-choice dungeon-${id} ${state.dungeon===id?'selected':''}" aria-pressed="${state.dungeon===id}" onclick="selectDungeon('${id}')"><strong>${name}</strong><span class="choice-selection">${state.dungeon===id?'✓ えらんでいるよ':''}</span></button>`).join('')}</div><h3>あそびかた</h3><div class="grid two"><button class="choice adventure-choice mode-checkpoint ${state.mode==='checkpoint'?'selected':''}" aria-pressed="${state.mode==='checkpoint'}" onclick="selectMode('checkpoint')"><strong>つづきからモード</strong><span class="small">まいステージ セーブ。まけても そだてて さいちょうせん</span><span class="choice-selection">${state.mode==='checkpoint'?'✓ えらんでいるよ':''}</span></button><button class="choice adventure-choice mode-challenge ${state.mode==='challenge'?'selected':''}" aria-pressed="${state.mode==='challenge'}" onclick="selectMode('challenge')"><strong>チャレンジモード</strong><span class="small">やめても まけても ステージ1から</span><span class="choice-selection">${state.mode==='challenge'?'✓ えらんでいるよ':''}</span></button></div><p class="small">きろくは このたんまつに じどうほぞん。ダンジョン・モードごとに べつの ぼうけんです。</p><div class="actions"><button class="primary" onclick="enterGame()">ぼうけんへ すすむ！</button></div><div class="actions"><button class="outline" onclick="openTestMode()">🧪 せんせいよう バトルテスト</button></div><p class="small center">テストは きろくに のこりません。</p></section>`}
+function home(b){b.innerHTML=`<section class="panel"><h2>ぼうけんの じゅんび</h2><div class="profile-summary">きょうの バトル：あと <strong>${dailyBattlesRemaining()}</strong>かい / 6かい</div>${dailyBattlesRemaining()===0?'<p class="notice">きょうは おしまい。また あした！</p>':''}${state.adventureNotice?`<p class="notice">${esc(state.adventureNotice)}</p>`:''}<div class="actions"><button class="outline" onclick="openGuide()">📖 ゲームの あそびかた</button><button class="primary" onclick="openLoginWardrobe()">🎁 がめんを きせかえる (${earnedThemes().length}/3)</button></div><h3>ダンジョンを えらぼう</h3><div class="grid three">${DUNGEONS.map(([id,name])=>`<button class="choice adventure-choice dungeon-${id} ${state.dungeon===id?'selected':''}" aria-pressed="${state.dungeon===id}" ${!isDungeonUnlocked(id)?'disabled':''} onclick="selectDungeon('${id}')"><strong>${!isDungeonUnlocked(id)?'🔒 ':''}${name}</strong><span class="choice-selection">${!isDungeonUnlocked(id)?'ダンジョン1を クリアすると あそべるよ':state.dungeon===id?'✓ えらんでいるよ':''}</span></button>`).join('')}</div><h3>あそびかた</h3><div class="grid two"><button class="choice adventure-choice mode-checkpoint ${state.mode==='checkpoint'?'selected':''}" aria-pressed="${state.mode==='checkpoint'}" onclick="selectMode('checkpoint')"><strong>つづきからモード</strong><span class="small">まいステージ セーブ。まけても そだてて さいちょうせん</span><span class="choice-selection">${state.mode==='checkpoint'?'✓ えらんでいるよ':''}</span></button><button class="choice adventure-choice mode-challenge ${state.mode==='challenge'?'selected':''}" aria-pressed="${state.mode==='challenge'}" onclick="selectMode('challenge')"><strong>チャレンジモード</strong><span class="small">やめても まけても ステージ1から</span><span class="choice-selection">${state.mode==='challenge'?'✓ えらんでいるよ':''}</span></button></div><p class="small">きろくと 1にち6かいの バトルは このたんまつで きょうつう。きろくは じどうほぞん。ダンジョン・モードごとに べつの ぼうけんです。</p><div class="actions"><button class="primary" onclick="enterGame()" ${dailyBattlesRemaining()===0?'disabled':''}>ぼうけんへ すすむ！</button></div><div class="actions"><button class="outline" onclick="openTestMode()">🧪 せんせいよう バトルテスト</button></div><p class="small center">テストは きろくに のこりません。</p></section>`}
 function openTestMode(){
   const pin=window.prompt('せんせいよう テスト\n4けたの あんしょうばんごうを いれてください');
   if(pin===null)return;
@@ -445,7 +453,7 @@ function setTestHero(id){state.testHero=id;render()}
 function setTestStage(n){state.testStage=n;render()}
 function launchTestBattle(){state.hero=state.testHero;state.testGame={...blank(),stage:state.testStage,points:30,skills:Object.keys(SKILLS),equipped:Object.keys(SKILLS)};state.testGame.stats={...TEST_HERO_STATS[state.testHero]};startBattle()}
 function exitTestMode(){state.busy=false;state.testMode=false;state.testGame=null;if(state.testOriginalDungeon){state.dungeon=state.testOriginalDungeon;delete state.testOriginalDungeon}state.screen='home';render()}
-function selectDungeon(id){state.dungeon=id;render()}function selectMode(id){state.mode=id;render()}
+function selectDungeon(id){if(!DUNGEONS.some(([key])=>key===id)||!isDungeonUnlocked(id))return;state.adventureNotice='';state.dungeon=id;render()}function selectMode(id){state.adventureNotice='';state.mode=id;render()}
 function restartAdventure(){
  if(state.testMode||state.busy||state.mode!=='checkpoint'||state.screen!=='choose')return;
  const g=current();if(!g||g.pendingHeroSelection)return;
@@ -458,7 +466,7 @@ function restartAdventure(){
  state.working=null;state.skillChoice=null;state.fight=null;state.question=null;
  save();state.screen='choose';render();
 }
-function enterGame(){const g=current();if(g)state.hero=g.hero;state.screen='choose';render()}
+function enterGame(){if(!guardAdventure())return;state.adventureNotice='';const g=current();if(g)state.hero=g.hero;state.screen='choose';render()}
 function choose(b){let g=current();b.innerHTML=`<section class="panel"><h2>${g&&!g.pendingHeroSelection&&state.mode==='checkpoint'?'ぼうけんを つづけよう':'さいしょの なかまを えらぼう'}</h2><div class="grid three">${Object.entries(heroRoster()).map(([id,h])=>`<div class="monsterpick"><button class="${state.hero===id?'selected':''}" ${g&&!g.pendingHeroSelection&&state.mode==='checkpoint'?'disabled':''} onclick="pickHero('${id}')"><img class="monster portrait hero-choice-image ${state.dungeon==='carry'?'is-evolved':''}" data-hero="${id}" data-party="${state.dungeon}" src="${heroSpriteSource(id)}"><strong>${h.name}</strong><div class="small">${h.type}</div><div class="small">こう ${h.atk+heroBaseBonus()}／ぼう ${h.def+heroBaseBonus()}／はや ${h.spd+heroBaseBonus()}</div><div class="small">${SKILLS[h.skill][0]}</div></button></div>`).join('')}</div>${g?`<p class="center">ステージ <b>${g.stage}</b> ／ さいこう <b>${g.best}</b> ／ のこり <b>${g.points}</b> ポイント</p>`:''}<div class="actions"><button class="outline" onclick="showSkillGuide()">📖 ぜんスキルの せつめい</button></div><div class="actions"><button class="outline" onclick="backHome()">もどる</button>${g&&!g.pendingHeroSelection&&state.mode==='checkpoint'?`<button class="outline" onclick="restartAdventure()">このぼうけんを はじめから</button>`:''}<button class="primary" onclick="beginAdventure()">${g&&!g.pendingHeroSelection&&state.mode==='checkpoint'?'つづきから':'この なかまで はじめる'}</button></div></section>`}
 function showSkillGuide(){
  const old=document.getElementById('skillGuide');if(old)old.remove();
@@ -506,7 +514,7 @@ function backHome(){
  }
  state.busy=false;state.screen='home';render();
 }
-function beginAdventure(){if(current()?.stage>30){backHome();return}if(!current()){storage.games[profile()]=blank();save()}const g=current();if(g.pendingHeroSelection){delete g.pendingHeroSelection;save()}state.hero=g.hero;state.screen='math';startMath()}
+function beginAdventure(){if(!guardAdventure())return;if(current()?.stage>30){backHome();return}if(!current()){storage.games[profile()]=blank();save()}const g=current();if(g.pendingHeroSelection){delete g.pendingHeroSelection;save()}state.hero=g.hero;state.screen='math';startMath()}
 // Calculation question engine: independent of DOM, timers, and saved game data.
 const CalculationQuestions=(()=>{
  const MODES={mix:{min:0,max:10,size:11},carry:{min:11,max:18,size:8},borrow:{min:2,max:9,size:8}};
@@ -579,6 +587,7 @@ function nextQuestion(){
 }
 function clearMathFeedback(){clearTimeout(state.mathFeedbackTimer);state.mathFeedbackTimer=null;state.mathFeedback=false;state.answerFeedback=''}
 function startMath(){
+ if(!guardAdventure())return;
  clearMathFeedback();
  clearInterval(state.timer);state.timer=null;
  state.correct=0;state.attempts=0;state.time=90;state.last=[];state.answer='';state.question=null;
@@ -668,9 +677,9 @@ function confirmSkillPurchase(){
  state.trainingNotice=SKILLS[id][0]+'を おぼえた！';
  render();
 }
-function confirmTraining(){let g=current();g.stats={...state.working.stats};g.points=state.working.points;g.skills=[...state.working.skills];g.equipped=[...state.working.equipped];save();startBattle()}
+function confirmTraining(){if(state.busy||state.screen!=='training')return;let g=current();g.stats={...state.working.stats};g.points=state.working.points;g.skills=[...state.working.skills];g.equipped=[...state.working.equipped];save();startBattle()}
 function enemyCombatStats(stage){const base=enemyStats(stage),f=state.fight;const bonus=state.dungeon==='carry'&&f?.enemyEvolved&&BOSS_EVOLUTION_IMAGES[enemyInfo(stage).key]?7:0;return {...base,atk:base.atk+bonus+(stage===30&&f?.bossAwake?5:0),def:base.def+bonus,spd:base.spd+bonus,skills:state.dungeon==='borrow'&&f?.keroberu&&stage%5!==0?[KEROBERU_TYPES[Math.floor((stage-1)/5)].skill]:base.skills}}
-function startBattle(){let g=current();state.fight={hp:40,enemyHP:enemyMaxHP(g.stage),maxEnemyHP:enemyMaxHP(g.stage),evoDamage:0,evolved:state.dungeon==='carry',enemyEvolved:false,keroberu:false,bossAwake:false,turn:1,charge:false,enemyCharge:false,lastDef:false,enemyLastDef:false,usedSkill:false,enemyUsedSkill:false,usedHeal:false,enemyUsedHeal:false,armorTurns:0,enemyArmorTurns:0,dodgeTurns:0,enemyDodgeTurns:0,pendingBossSkill:null};if(state.testMode&&state.dungeon==='carry'&&state.testBossForm==='evolved'&&BOSS_EVOLUTION_IMAGES[enemyInfo(g.stage).key]){state.fight.enemyEvolved=true;state.fight.enemyHP=Math.round(state.fight.maxEnemyHP*.7)}state.logs=[enemyInfo(g.stage).boss?'ボス '+enemyInfo(g.stage).name+'が あらわれた！':enemyInfo(g.stage).name+'が あらわれた！'];state.busy=false;state.screen='battle';render()}
+function startBattle(){if(!guardAdventure())return;if(!consumeDailyBattle()){showDailyLimit();return}let g=current();state.fight={hp:40,enemyHP:enemyMaxHP(g.stage),maxEnemyHP:enemyMaxHP(g.stage),evoDamage:0,evolved:state.dungeon==='carry',enemyEvolved:false,keroberu:false,bossAwake:false,turn:1,charge:false,enemyCharge:false,lastDef:false,enemyLastDef:false,usedSkill:false,enemyUsedSkill:false,usedHeal:false,enemyUsedHeal:false,armorTurns:0,enemyArmorTurns:0,dodgeTurns:0,enemyDodgeTurns:0,pendingBossSkill:null};if(state.testMode&&state.dungeon==='carry'&&state.testBossForm==='evolved'&&BOSS_EVOLUTION_IMAGES[enemyInfo(g.stage).key]){state.fight.enemyEvolved=true;state.fight.enemyHP=Math.round(state.fight.maxEnemyHP*.7)}state.logs=[enemyInfo(g.stage).boss?'ボス '+enemyInfo(g.stage).name+'が あらわれた！':enemyInfo(g.stage).name+'が あらわれた！'];state.busy=false;state.screen='battle';render()}
 const VISIBLE_SPRITE_BOUNDS=new Map();
 function visibleSpriteBounds(img){
  if(VISIBLE_SPRITE_BOUNDS.has(img.src))return VISIBLE_SPRITE_BOUNDS.get(img.src);
@@ -946,6 +955,7 @@ function endBattle(won){
  if(state.testMode){state.busy=false;state.screen='result';render();return}
  if(won){
   if(g.stage===30){
+   if(state.dungeon==='mix')storage.dungeon1Cleared=true;
    const k=masterStudentKey();storage.masterUnlocks[k]=true;storage.loginRewards[k]??={};
    if(!storage.loginRewards[k][state.dungeon]){storage.loginRewards[k][state.dungeon]=true;storage.loginThemes[k]=state.dungeon;state.newLoginReward=state.dungeon}else state.newLoginReward=null;
   }else state.newLoginReward=null;
@@ -957,8 +967,9 @@ function endBattle(won){
  // Older boss checkpoints remain compatible but are no longer rolled back to.
  save();state.screen=won&&g.stage===15&&heroCanEvolve(g.stage)?'evoUnlock':'result';state.busy=false;render();
 }
-function result(b){if(state.testMode){b.innerHTML=`<section class="panel center"><h2>${state.won?'しょうり！':'ざんねん！'}</h2><p>テストの けっかは ほぞんされません。</p><div class="actions"><button class="outline" onclick="exitTestMode()">タイトルへ</button><button class="outline" onclick="state.screen='testSetup';render()">ステージを えらぶ</button><button class="primary" onclick="launchTestBattle()">もういちど バトル！</button></div></section>`;return}let g=current();let completed=state.won&&g.stage===31;b.innerHTML=`<section class="panel center"><div style="font-size:60px">${state.won?'🏆':'💫'}</div><h2 class="gold">${state.won?'しょうり！':'ざんねん！'}</h2><p>${completed?'テンセイリュウを たおした！ 30ステージ ぜんクリア！':state.won?'てきを たおした！':state.mode==='checkpoint'?'のうりょくは そのまま！ けいさんして おなじ あいてに さいちょうせん！':'また ちょうせん しよう！'}</p>${completed&&state.newLoginReward?`<p class="notice">🎁 あたらしい ログインがめんを ゲット！<br>「${LOGIN_REWARDS[state.newLoginReward]}」<br>つぎから この がめんで あそべるよ！</p>`:''}<p>さいこう ステージ ${g.best} ／ せいかいの るいけい ${g.correctTotal}もん</p><div class="actions"><button class="outline" onclick="backHome()">タイトルへ</button>${!completed?`<button class="primary" onclick="resume()">${state.won?'つぎの ステージへ':state.mode==='checkpoint'?'けいさんして さいちょうせん！':'もういちど！'}</button>`:`<button class="primary" onclick="backHome()">おわる</button>`}</div></section>`}
+function result(b){if(state.testMode){b.innerHTML=`<section class="panel center"><h2>${state.won?'しょうり！':'ざんねん！'}</h2><p>テストの けっかは ほぞんされません。</p><div class="actions"><button class="outline" onclick="exitTestMode()">タイトルへ</button><button class="outline" onclick="state.screen='testSetup';render()">ステージを えらぶ</button><button class="primary" onclick="launchTestBattle()">もういちど バトル！</button></div></section>`;return}let g=current();let completed=state.won&&g.stage===31;b.innerHTML=`<section class="panel center"><div style="font-size:60px">${state.won?'🏆':'💫'}</div><h2 class="gold">${state.won?'しょうり！':'ざんねん！'}</h2><p>${completed?enemyInfo(30).name+'を たおした！ 30ステージ ぜんクリア！':state.won?'てきを たおした！':state.mode==='checkpoint'?'のうりょくは そのまま！ けいさんして おなじ あいてに さいちょうせん！':'また ちょうせん しよう！'}</p>${completed&&state.newLoginReward?`<p class="notice">🎁 あたらしい ログインがめんを ゲット！<br>「${LOGIN_REWARDS[state.newLoginReward]}」<br>つぎから この がめんで あそべるよ！</p>`:''}${dailyBattlesRemaining()===0?'<p class="notice">きょうの バトルは おしまい！ また あした！</p>':`<p class="small">きょうは あと ${dailyBattlesRemaining()}かい バトルできるよ。</p>`}<p>さいこう ステージ ${g.best} ／ せいかいの るいけい ${g.correctTotal}もん</p><div class="actions"><button class="outline" onclick="backHome()">タイトルへ</button>${!completed&&dailyBattlesRemaining()>0?`<button class="primary" onclick="resume()">${state.won?'つぎの ステージへ':state.mode==='checkpoint'?'けいさんして さいちょうせん！':'もういちど！'}</button>`:`<button class="primary" onclick="backHome()">おわる</button>`}</div></section>`}
 function resume(){if(current().stage>30){backHome();return}state.screen='math';startMath()}
+window.addEventListener('focus',()=>{if(state.screen==='home'&&!state.busy)render()});
 render();
 
 // Ver.43: in-game help. No evolution artwork is revealed here.
@@ -982,7 +993,7 @@ function selectBattleHelpTab(tab){
  if(!BATTLE_HELP_CONTENT[tab])tab='commands';
  const tabs=document.getElementById('battleHelpTabs'),content=document.getElementById('battleHelpContent');if(!tabs||!content)return;
  tabs.innerHTML=BATTLE_HELP_TABS.map(([id,label])=>'<button type="button" class="'+(id===tab?'selected':'')+'" onclick="selectBattleHelpTab(\''+id+'\')">'+label+'</button>').join('');
- content.innerHTML=tab==='evolution'&&state.dungeon==='carry'?'<p><strong>くりあがりの ダンジョンでは はじめから しんかした なかまで ぼうけんするよ。</strong></p><p>ボスは HPが はんぶんに なると しんかするよ！ HPが ぜんかいふくして、こうげき・ぼうぎょ・すばやさが ＋7！</p>':BATTLE_HELP_CONTENT[tab];
+ content.innerHTML=tab==='evolution'&&state.dungeon==='carry'?'<p><strong>くりあがりの ダンジョンでは はじめから しんかした なかまで ぼうけんするよ。</strong></p><p>ボスは HPが はんぶんに なると しんかするよ！ HPが さいだいの70％まで かいふくして、こうげき・ぼうぎょ・すばやさが ＋7！</p>':BATTLE_HELP_CONTENT[tab];
 }
 function closeBattleHelp(){const el=document.getElementById('battleHelpOverlay');if(el)el.remove();document.body.classList.remove('help-open');battleHelpOpen=false;}
 
