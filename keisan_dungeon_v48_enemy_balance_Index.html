@@ -377,6 +377,12 @@ function isDungeonUnlocked(id){return id==='mix'||!!storage.dungeon1Cleared||!!s
 function showDailyLimit(){clearMathFeedback();clearInterval(state.timer);state.timer=null;state.busy=false;state.screen='home';render()}
 function guardAdventure(){if(!isPlayTime()){updatePlayHours();return false}if(state.testMode)return true;if(!isDungeonUnlocked(state.dungeon)){state.dungeon='mix';state.adventureNotice='ダンジョン1を クリアすると あそべるよ。';state.screen='home';render();return false}if(dailyBattlesRemaining()===0){showDailyLimit();return false}return true}
 function consumeDailyBattle(){if(state.testMode)return true;const usage=dailyBattleUsage();if(usage.used>=DAILY_BATTLE_LIMIT)return false;storage.dailyBattles={date:usage.date,used:usage.used+1};save();return true}
+function resetProgressOnce(){
+ if(storage.progressResetVersion===1)return;
+ storage.games={};storage.masterUnlocks={};storage.loginRewards={};storage.loginThemes={};storage.dungeon1Cleared=false;storage.deviceProfileVersion=1;storage.guideSeen=false;
+ delete storage.className;delete storage.number;delete storage.profileRegistered;
+ storage.progressResetVersion=1;save();
+}
 function migrateDeviceProfile(){
  if(storage.deviceProfileVersion===1)return;
  const old=(storage.className||'1ねん1くみ')+'_'+(storage.number||'1');
@@ -413,6 +419,7 @@ function resetChallengeRuns(){
  }
  save();
 }
+resetProgressOnce();
 migrateDeviceProfile();
 resetChallengeRuns();
 function render(){const a=$('app');if(state.screen==='evoUnlock'){a.innerHTML=`<section class="panel center"><h1>✨ しんかの ちからが めざめた！</h1><p>ステージ15からは バトルで ピンチになると<br>しんかゲージが たまるよ！</p><p>いっぱいになると じどうで しんか！<br>HPが ぜんかいふく！ もっと つよくなる！<br>スキルも また 1かい つかえるよ！</p><h2>ピンチは チャンス！</h2><button class="primary" onclick="state.screen='result';render()">わかった！</button></section>`;return}if(state.screen==='landing'){const theme=currentLoginTheme();a.innerHTML=`<div class="landing"><div class="landing-art ${theme?'reward-'+theme:(masterUnlocked()?'master-login':'')}"><button class="landing-hit" aria-label="ログインしてぼうけんをはじめる" title="ログイン" onclick="loginIntro()"></button></div></div>`;return}if(state.screen==='wardrobe'){a.innerHTML='<div class="top"><h1>🎁 がめんの きせかえ</h1></div><div id="body"></div>';renderLoginWardrobe($('body'));return}if(state.screen==='guide'){a.innerHTML='';renderGuide(a);return}a.innerHTML=`<div class="top"><h1>⚔ けいさんダンジョン</h1><button class="outline" onclick="toggleSound()">${storage.sound?'🔊 おと ON':'🔇 おと OFF'}</button></div><div id="body"></div>`;const b=$('body');({home,choose,countdown,math,training,battle,result,testSetup})[state.screen]?.(b)}
